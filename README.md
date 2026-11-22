@@ -12,7 +12,6 @@ Portal da expedição para planejar o carregamento nas docas: linha do tempo das
 Na área **Dados** do portal:
 - **Importar programação** (.xlsx/.csv no formato PROGRAMAÇÃO_23) — troca só os dias que vierem no arquivo.
 - **Importar separação** (.xlsx/.csv no formato Separação) — vale o último arquivo.
-- **Lançar rota do dia com volumes** e **Incluir na programação** — lançamentos à mão, que continuam valendo depois de novas importações.
 
 ## Estrutura
 - `index.html` — o portal (HTML + CSS + JS, sem build), no visual Nexxa da Torre de Controle.

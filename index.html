@@ -166,42 +166,6 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
         <p class="pc-msg" data-read lang="pt-BR">Última separação: <b data-draw="sep-hora" data-source="separacao_resumo" data-field="atualizado" data-row="0">—</b> · <b data-draw="sep-pct" data-source="separacao_resumo" data-field="pct_volumes" data-row="0">—</b> dos volumes do período separados</p>
       </div>
     </div>
-    <div class="pc-grid2 pc-manual">
-      <form id="man-sep" autocomplete="off">
-        <h3 class="pc-h3">Lançar rota do dia com volumes</h3>
-        <p class="pc-sub" data-read lang="pt-BR">Para incluir uma rota que não veio no arquivo de separação ou corrigir os volumes de uma rota. Continua valendo depois de novas importações.</p>
-        <div class="pc-form-grid">
-          <div class="pc-field"><label for="ms-rota">Rota</label><input id="ms-rota" required placeholder="SPTQ101"></div>
-          <div class="pc-field"><label for="ms-data">Data do carregamento</label><input id="ms-data" type="date" required></div>
-          <div class="pc-field"><label for="ms-hora">Horário</label><input id="ms-hora" type="time" required></div>
-          <div class="pc-field"><label for="ms-vol">Volumes (total)</label><input id="ms-vol" type="number" min="1" step="1" required></div>
-          <div class="pc-field"><label for="ms-sep">Já separados</label><input id="ms-sep" type="number" min="0" step="1" value="0"></div>
-        </div>
-        <button type="submit" class="pc-btn pc-btn-pri">Salvar rota</button>
-        <p class="pc-msg pc-msg-ok" id="pc-ms-ok" hidden>Rota salva.</p>
-        <p class="pc-msg pc-msg-bad" id="pc-ms-erro" hidden>Não foi salvo. Confira os campos (separados não pode passar do total) ou se você pode editar o portal.</p>
-        <div data-draw="lista-ms" data-source="separacao_manual"></div>
-      </form>
-      <form id="man-prog" autocomplete="off">
-        <h3 class="pc-h3">Incluir na programação</h3>
-        <p class="pc-sub" data-read lang="pt-BR">Rota, horário, carro e motorista. Se a rota já existe nesse dia, os campos preenchidos aqui substituem os importados.</p>
-        <div class="pc-form-grid">
-          <div class="pc-field"><label for="mp-rota">Rota</label><input id="mp-rota" required placeholder="SPTQ101"></div>
-          <div class="pc-field"><label for="mp-data">Data do carregamento</label><input id="mp-data" type="date" required></div>
-          <div class="pc-field"><label for="mp-hora">Horário</label><input id="mp-hora" type="time" required></div>
-          <div class="pc-field"><label for="mp-transp">Transportadora</label><input id="mp-transp"></div>
-          <div class="pc-field"><label for="mp-modal">Carro (modal)</label><input id="mp-modal" placeholder="TQ, VC, HR…"></div>
-          <div class="pc-field"><label for="mp-mot">Motorista</label><input id="mp-mot"></div>
-          <div class="pc-field"><label for="mp-placa">Placa</label><input id="mp-placa"></div>
-          <div class="pc-field"><label for="mp-ajud">Ajudante</label><input id="mp-ajud"></div>
-        </div>
-        <label class="pc-check"><input type="checkbox" id="mp-ant"> Separação e carregamento antecipados (pode começar até 6h antes)</label>
-        <button type="submit" class="pc-btn pc-btn-pri">Salvar na programação</button>
-        <p class="pc-msg pc-msg-ok" id="pc-mp-ok" hidden>Programação salva.</p>
-        <p class="pc-msg pc-msg-bad" id="pc-mp-erro" hidden>Não foi salvo. Preencha rota, data e horário, ou confira se você pode editar o portal.</p>
-        <div data-draw="lista-mp" data-source="programacao_manual"></div>
-      </form>
-    </div>
   </section>
 
   <section class="pc-card" id="periodo-ctl">
