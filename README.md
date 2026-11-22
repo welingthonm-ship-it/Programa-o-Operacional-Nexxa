@@ -1,4 +1,4 @@
-# Programação de carregamento
+# Programação Operacional · Nexxa
 
 Portal da expedição para planejar o carregamento nas docas: linha do tempo das 7 docas com arrastar e soltar, % separado por carga, docas em uso, sequência de carregamento e agendamento dos motoristas (imprimível).
 
@@ -15,7 +15,8 @@ Na área **Dados** do portal:
 - **Lançar rota do dia com volumes** e **Incluir na programação** — lançamentos à mão, que continuam valendo depois de novas importações.
 
 ## Estrutura
-- `index.html` — o portal (HTML + CSS + JS, sem build).
+- `index.html` — o portal (HTML + CSS + JS, sem build), no visual Nexxa da Torre de Controle.
+- `logo-nexxa.png` — logo do cabeçalho.
 - `runtime.js` — liga o portal ao Supabase (tabela `docs`) e atualiza em tempo real.
 - `api/config.js` — função da Vercel que entrega `SUPABASE_URL` e `SUPABASE_ANON_KEY` ao navegador.
 - `supabase/schema.sql` — cria a tabela `docs`, as políticas e o tempo real.
@@ -28,4 +29,4 @@ Na área **Dados** do portal:
    - `SUPABASE_ANON_KEY` — chave `anon` pública (Settings → API)
 3. Faça o deploy. A cada push na branch `main` a Vercel publica de novo.
 
-> Segurança: com as políticas do `schema.sql`, quem tiver o link pode ler e editar. Para restringir, ative login no Supabase e troque `anon` por `authenticated` nas políticas.
+> Acesso público: com as políticas do `schema.sql`, qualquer pessoa com o link da Vercel pode ver o plano, importar os arquivos de programação e separação e lançar rotas, sem login. Para restringir, ative login no Supabase e troque `anon` por `authenticated` nas políticas.
