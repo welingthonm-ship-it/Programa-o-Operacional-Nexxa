@@ -124,6 +124,22 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
 .nx .pc-table th{background:var(--nx-soft);color:var(--nx-g1)}
 .nx .pc-notes summary{color:var(--nx-g1)}
 @media print{.pc-wrap.nx{background:#fff;padding:0}}
+.pc-ticker{display:flex;align-items:stretch;background:#0B3B22;color:#fff;border-radius:var(--cds-radius);overflow:hidden;min-height:40px;font-size:var(--cds-font-size-body);box-shadow:0 1px 3px rgba(16,40,24,.12)}
+.pc-tk-badge{flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:var(--cds-font-size-caption);white-space:nowrap}
+.pc-tk-ok{background:#1E8E4A}.pc-tk-bad{background:#C8382D}
+.pc-tk-dot{width:8px;height:8px;border-radius:50%;background:#fff;animation:pcPisca 1.4s ease-in-out infinite}
+.pc-tk-vp{flex:1;overflow:hidden;display:flex;align-items:center;min-width:0}
+.pc-tk-track{display:inline-flex;white-space:nowrap;animation:pcTk linear infinite;will-change:transform}
+.pc-tk-track > span{padding-right:5rem}
+.pc-tk-sep{opacity:.45;padding:0 .9rem}
+.pc-tk-warn{color:#FFC9C2;font-weight:600}
+.pc-ticker:hover .pc-tk-track{animation-play-state:paused}
+@keyframes pcTk{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes pcPisca{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.pc-tk-track,.pc-tk-dot{animation:none}.pc-tk-track{white-space:normal;flex-wrap:wrap;padding:6px 0}}
+.pc-sw-agora{width:3px;height:14px;border-radius:1px;background:var(--color-bad)}
+.pc-chart svg text.pc-agora-lab{fill:var(--color-bad);font-weight:600}
+@media print{.pc-ticker{display:none}}
 .pc-manual{margin-top:var(--cds-gap-xl);padding-top:var(--cds-gap-lg);border-top:1px solid var(--color-border-line)}
 .pc-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--cds-gap-sm);margin-bottom:var(--cds-gap-md)}
 .pc-check{display:flex;gap:6px;align-items:center;font-size:var(--cds-font-size-caption);margin:0 0 var(--cds-gap-md)}
@@ -140,6 +156,8 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
     </div>
     <p class="pc-lede" data-read lang="pt-BR">De <b data-draw="lede-de">—</b> a <b data-draw="lede-ate">—</b>: <b data-draw="lede-cargas" data-source="kpis" data-field="cargas" data-row="0">—</b> cargas e <b data-draw="lede-vol" data-source="kpis" data-field="volumes" data-row="0">—</b> volumes. A última termina em <b data-draw="lede-termino" data-source="kpis" data-field="termino" data-row="0">—</b>.</p>
   </header>
+
+  <div class="pc-ticker" data-draw="ticker" data-source="programacao_aj" role="status" aria-label="Status atual da operação"></div>
 
   <section class="pc-card" id="dados">
     <h2 class="pc-h2">Dados</h2>
@@ -217,6 +235,7 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
       <span><i class="pc-sw pc-sw-1"></i>Começa depois do horário planejado</span>
       <span><i class="pc-sw pc-sw-closed"></i>Doca fechada</span>
       <span><i class="pc-sw pc-sw-conf"></i>Conflito na mesma doca</span>
+      <span><i class="pc-sw pc-sw-agora"></i>Agora</span>
     </div>
     <div class="pc-toolbar">
       <span class="pc-aj-dica">Arraste uma barra para os lados para mudar o horário, ou para cima/baixo para mudar a doca (passos de 5 min). Fica salvo para todos.</span>
@@ -570,6 +589,65 @@ dash.draw('prog-dias', (el) => {
   if (d.status !== 'ok' || !Array.isArray(d.data) || !d.data.length) { el.textContent = 'nenhum'; return; }
   el.textContent = d.data.map((x) => x.data).filter(Boolean).sort().map((s) => s.slice(8, 10) + '/' + s.slice(5, 7)).join(', ');
 });
+PC.agora = () => { const d = new Date(); return PC.abs(d.getFullYear() + '-' + PC.pad(d.getMonth() + 1) + '-' + PC.pad(d.getDate()) + 'T' + PC.pad(d.getHours()) + ':' + PC.pad(d.getMinutes())); };
+dash.draw('ticker', (el) => {
+  const src = dash.data('programacao_aj');
+  if (src.status !== 'ok' || !Array.isArray(src.data)) { if (el.dataset.k !== '-') { el.replaceChildren(); el.textContent = '—'; el.dataset.k = '-'; } return; }
+  const rows = PC.prep(src.data);
+  const now = PC.agora();
+  const pct = (v) => String(v).replace('.', ',') + '%';
+  const temSep = (r) => r.pct_separado !== null && r.pct_separado !== undefined && r.pct_separado !== '';
+  const carregando = rows.filter((r) => r.ini <= now && now < r.fimM);
+  const concl = rows.filter((r) => r.fimM <= now);
+  const aguard = rows.filter((r) => r.ini > now).sort((a, b) => a.ini - b.ini);
+  const atrasos = [];
+  for (const r of rows) {
+    if (r.passa_corte === true || r.passa_corte === 'true') atrasos.push(r.rota + ' passa do corte das 05h (termina ' + PC.hhmm(r.fimM) + ')');
+    else if (r.antecipacao_min < 0) atrasos.push(r.rota + ' começa ' + (-r.antecipacao_min) + ' min depois do horário planejado (' + PC.hhmm(r.plan) + ')');
+    else if (r.fimM <= now && temSep(r) && +r.pct_separado < 100) atrasos.push(r.rota + ' deveria ter terminado às ' + PC.hhmm(r.fimM) + ' e está só ' + pct(r.pct_separado) + ' separada');
+    else if (r.ini <= now && temSep(r) && +r.pct_separado < 100) atrasos.push(r.rota + ' em carregamento na ' + r.doca + ' com só ' + pct(r.pct_separado) + ' separado');
+  }
+  const msgs = [];
+  if (!rows.length) msgs.push({ t: 'Nenhuma carga no período escolhido' });
+  else {
+    const ini0 = Math.min(...rows.map((r) => r.ini)), fim1 = Math.max(...rows.map((r) => r.fimM));
+    if (now < ini0) msgs.push({ t: 'Agora ' + PC.hhmm(now) + ': a operação do período começa ' + PC.lab(ini0) + ' com ' + aguard[0].rota + ' na ' + aguard[0].doca });
+    else if (now >= fim1) msgs.push({ t: 'Agora ' + PC.hhmm(now) + ': operação do período encerrada, ' + rows.length + ' cargas carregadas' });
+    else msgs.push({ t: 'Agora ' + PC.hhmm(now) + ': ' + carregando.length + ' em carregamento, ' + concl.length + ' concluídas, ' + aguard.length + ' aguardando' });
+    if (carregando.length) msgs.push({ t: 'Carregando: ' + carregando.sort((a, b) => a.docaN - b.docaN).map((r) => r.rota + ' (' + r.doca + ', até ' + PC.hhmm(r.fimM) + (temSep(r) ? ', ' + pct(r.pct_separado) + ' separado' : '') + ')').join(' · ') });
+    if (aguard.length && now >= ini0) { const p = aguard[0]; msgs.push({ t: 'Próxima: ' + p.rota + ' às ' + PC.hhmm(p.ini) + ' na ' + p.doca + (p.motorista ? ' · motorista ' + p.motorista : '') + (p.placa ? ' · ' + p.placa : '') }); }
+    if (atrasos.length) for (const a of atrasos) msgs.push({ t: '⚠ ' + a, w: true });
+    else msgs.push({ t: '✓ Todas as cargas dentro do horário' });
+    const sobra = rows.reduce((m, r) => Math.max(m, r.fimM), 0);
+    const corte = Math.floor(sobra / 1440) * 1440 + 300 + ((((sobra % 1440) + 1440) % 1440) >= 300 ? 1440 : 0);
+    const folga = corte - sobra;
+    if (folga >= 0 && folga < 1440 - 300) msgs.push({ t: 'Última carga termina ' + PC.lab(sobra) + ' · folga de ' + folga + ' min até o corte das 05h' });
+    else msgs.push({ t: 'Última carga termina ' + PC.lab(sobra) });
+    const sr = dash.data('separacao_resumo');
+    if (sr.status === 'ok' && Array.isArray(sr.data) && sr.data.length) msgs.push({ t: 'Separação do período: ' + pct(sr.data[0].pct_volumes) + ' dos volumes (arquivo de ' + sr.data[0].atualizado + ')' });
+  }
+  const k = atrasos.length + '|' + msgs.map((m) => m.t).join('|');
+  if (el.dataset.k === k) return;
+  el.dataset.k = k;
+  el.replaceChildren();
+  const badge = document.createElement('div'); badge.className = 'pc-tk-badge ' + (atrasos.length ? 'pc-tk-bad' : 'pc-tk-ok');
+  const dot = document.createElement('i'); dot.className = 'pc-tk-dot'; badge.append(dot);
+  badge.append(atrasos.length ? (atrasos.length === 1 ? '1 carga atrasada' : atrasos.length + ' cargas atrasadas') : 'No horário');
+  const vp = document.createElement('div'); vp.className = 'pc-tk-vp';
+  const track = document.createElement('div'); track.className = 'pc-tk-track';
+  const copia = () => {
+    const s = document.createElement('span');
+    msgs.forEach((m, i) => {
+      if (i) { const sep = document.createElement('span'); sep.className = 'pc-tk-sep'; sep.textContent = '•'; s.append(sep); }
+      const t = document.createElement('span'); if (m.w) t.className = 'pc-tk-warn'; t.textContent = m.t; s.append(t);
+    });
+    return s;
+  };
+  track.append(copia(), copia());
+  const len = msgs.reduce((n, m) => n + m.t.length, 0);
+  track.style.animationDuration = Math.max(25, Math.round(len * 0.18)) + 's';
+  vp.append(track); el.append(badge, vp);
+});
 dash.draw('aj-count', (el) => { const a = dash.data('ajustes'); el.textContent = a.status === 'ok' && Array.isArray(a.data) ? String(a.data.length) : '—'; });
 function pcLista(name, ds, base, texto) {
   dash.draw(name, (el) => {
@@ -617,7 +695,7 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     d0 = Math.floor(d0 / 60) * 60; d1 = Math.ceil(d1 / 60) * 60;
     const span = d1 - d0;
     const minW = Math.max(320, el.clientWidth);
-    const W = Math.max(minW, Math.round(span / 60 * 70)), rowH = 36, top = 22, left = 62, right = 12, bottom = 26;
+    const W = Math.max(minW, Math.round(span / 60 * 70)), rowH = 36, top = 34, left = 62, right = 12, bottom = 26;
     const H = top + PC.N2 * rowH + bottom;
     const x = d3.scaleLinear().domain([d0, d1]).range([left, W - right]);
     const y = (n) => top + (n - 1) * rowH;
@@ -693,6 +771,13 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
         this.textContent = '';
       });
     // arrastar
+    const agora = PC.agora();
+    if (agora >= d0 && agora <= d1) {
+      const ga = svg.append('g').style('pointer-events', 'none');
+      ga.append('line').attr('x1', x(agora)).attr('x2', x(agora)).attr('y1', top - 14).attr('y2', H - bottom).style('stroke', 'var(--color-bad)').style('stroke-width', 2);
+      ga.append('circle').attr('cx', x(agora)).attr('cy', top - 14).attr('r', 4).style('fill', 'var(--color-bad)');
+      ga.append('text').attr('class', 'pc-agora-lab').attr('x', x(agora) + 7).attr('y', 12).text('agora ' + PC.hhmm(agora));
+    }
     const guia = svg.append('text').attr('class', 'pc-guia').attr('text-anchor', 'middle').attr('visibility', 'hidden');
     g.on('pointerdown', function (ev, r) {
       if (ev.button !== undefined && ev.button !== 0) return;
@@ -756,6 +841,8 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
         tip.style.left = Math.max(0, lx) + 'px'; tip.style.top = (ev.clientY - bx.top - 40) + 'px';
       })
       .on('pointerleave', () => { tip.hidden = true; });
+    const agO = PC.agora();
+    if (agO >= d0 && agO <= d1) svg.append('line').attr('x1', x(agO)).attr('x2', x(agO)).attr('y1', top).attr('y2', H - bottom).style('stroke', 'var(--color-bad)').style('stroke-width', 2).style('pointer-events', 'none');
     const line = d3.line().curve(d3.curveStepAfter).x((d) => x(d.minuto)).y((d) => yS(d.disponiveis));
     svg.append('path').datum(data.concat([{ minuto: d1, disponiveis: data[data.length - 1].disponiveis }])).attr('d', line)
       .style('fill', 'none').style('stroke', 'var(--cds-chart-reference)').style('stroke-width', 2).style('stroke-dasharray', '5 3');
@@ -868,6 +955,7 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     document.querySelectorAll('#agendamento').forEach((s) => { s.classList.remove('pc-print-page'); s.hidden = PC.tab !== 'agendamento'; });
   });
   document.querySelectorAll('#pc-filtro-doca').forEach((sel) => sel.addEventListener('change', () => { PC.filtroDoca = sel.value; dash.draw('tabela'); }));
+  setInterval(() => { dash.draw('ticker'); if (!PC.arrastando) { dash.draw('gantt'); dash.draw('ocupacao'); } }, 60000);
 })();
 </script>
 
