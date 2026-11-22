@@ -14,6 +14,10 @@ create index if not exists docs_colecao_idx on public.docs (colecao);
 
 alter table public.docs enable row level security;
 
+-- Projetos novos do Supabase não dão acesso às tabelas para a chave pública: libera aqui.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on table public.docs to anon, authenticated;
+
 -- Acesso aberto com a chave pública (anon): qualquer pessoa com o link lê e edita.
 -- Para restringir, troque "anon" por "authenticated" e ative login no Supabase.
 drop policy if exists "docs_select" on public.docs;
