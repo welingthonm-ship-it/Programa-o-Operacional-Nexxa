@@ -157,8 +157,6 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
     <p class="pc-lede" data-read lang="pt-BR">De <b data-draw="lede-de">—</b> a <b data-draw="lede-ate">—</b>: <b data-draw="lede-cargas" data-source="kpis" data-field="cargas" data-row="0">—</b> cargas e <b data-draw="lede-vol" data-source="kpis" data-field="volumes" data-row="0">—</b> volumes. A última termina em <b data-draw="lede-termino" data-source="kpis" data-field="termino" data-row="0">—</b>.</p>
   </header>
 
-  <div class="pc-ticker" data-draw="ticker" data-source="programacao_aj" role="status" aria-label="Status atual da operação"></div>
-
   <section class="pc-card" id="dados">
     <h2 class="pc-h2">Dados</h2>
     <p class="pc-sub" data-read lang="pt-BR">Importe cada arquivo separadamente. Atualizar a separação não mexe na programação, e atualizar a programação não mexe na separação.</p>
@@ -226,6 +224,8 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
       <span class="pc-tile-value" data-draw="kpi-corte" data-source="kpis" data-field="passam_corte" data-row="0">—</span>
     </div>
   </section>
+
+  <div class="pc-ticker" data-draw="ticker" data-source="programacao_aj" role="status" aria-label="Status atual da operação"></div>
 
   <section class="pc-card" id="linha-do-tempo">
     <h2 class="pc-h2">Ocupação das docas</h2>
