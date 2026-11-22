@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Programação de carregamento</title>
+<style>
+:root{
+  --font-anthropic-sans:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  --font-anthropic-serif:Georgia,"Times New Roman",serif;
+  --cds-gap-xs:4px;--cds-gap-sm:8px;--cds-gap-md:12px;--cds-gap-lg:16px;--cds-gap-xl:24px;
+  --cds-pad-lg:16px;--cds-radius:8px;
+  --cds-font-size-title:1.9rem;--cds-font-size-heading:1.1rem;--cds-font-size-body:0.95rem;--cds-font-size-caption:0.8rem;
+  --cds-font-weight-medium:600;
+  --color-bg:#ffffff;--color-panel:#fafaf9;--color-fg:#1c1917;--color-fg-muted:#6b6560;--color-border-line:#e7e5e4;
+  --color-ok:#15803d;--color-bad:#dc2626;--color-warn:#b45309;
+  --cds-chart-grid:#e7e5e4;--cds-chart-reference:#78716c;--cds-text-secondary:#6b6560;
+  --cds-surface-popover:#ffffff;--cds-border:#d6d3d1;--cds-shadow-popover:0 4px 16px rgba(0,0,0,.12);
+}
+@media (prefers-color-scheme: dark){:root{
+  --color-bg:#1c1b1a;--color-panel:#252423;--color-fg:#f5f5f4;--color-fg-muted:#a8a29e;--color-border-line:#3a3836;
+  --color-ok:#4ade80;--color-bad:#f87171;--color-warn:#fbbf24;
+  --cds-chart-grid:#3a3836;--cds-chart-reference:#a8a29e;--cds-text-secondary:#a8a29e;
+  --cds-surface-popover:#2c2b29;--cds-border:#44413e;
+}}
+html,body{margin:0;background:var(--color-bg);color:var(--color-fg)}
+#dash-root{max-width:1280px;margin:0 auto;padding:24px 16px 48px}
+.dash-select{font:inherit;font-size:var(--cds-font-size-body);padding:5px 8px;border-radius:var(--cds-radius);border:1px solid var(--color-border-line);background:var(--color-bg);color:var(--color-fg)}
+.pc-aviso{background:#fef3c7;color:#78350f;border-radius:8px;padding:12px 16px;margin-bottom:16px}
+</style>
+<script src="/api/config"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="/runtime.js"></script>
+</head>
+<body>
+<div id="dash-root">
+<p class="pc-aviso" id="pc-sem-config" hidden>O portal não está ligado ao Supabase. Configure SUPABASE_URL e SUPABASE_ANON_KEY nas variáveis de ambiente da Vercel e rode supabase/schema.sql no projeto.</p>
+<style>
+.pc-wrap{display:flex;flex-direction:column;gap:var(--cds-gap-xl);font-family:var(--font-anthropic-sans);color:var(--color-fg)}
+.pc-title{font-family:var(--font-anthropic-serif);font-weight:400;font-size:var(--cds-font-size-title);margin:0}
+.pc-lede{margin:var(--cds-gap-sm) 0 0;color:var(--color-fg-muted);font-size:var(--cds-font-size-body);line-height:1.5;max-width:75ch}
+.pc-lede b{color:var(--color-fg);font-weight:var(--cds-font-weight-medium)}
+.pc-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--cds-gap-md)}
+.pc-tile{background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-lg);display:flex;flex-direction:column;gap:var(--cds-gap-xs)}
+.pc-tile-label{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.pc-tile-value{font-family:var(--font-anthropic-serif);font-weight:400;font-size:1.8rem;line-height:1.1;font-variant-numeric:tabular-nums;min-height:2rem}
+.pc-card{background:var(--color-panel);border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:var(--cds-pad-lg)}
+.pc-h2{font-size:var(--cds-font-size-heading);font-weight:var(--cds-font-weight-medium);margin:0 0 var(--cds-gap-xs)}
+.pc-h3{font-size:var(--cds-font-size-body);font-weight:var(--cds-font-weight-medium);margin:0 0 var(--cds-gap-xs)}
+.pc-sub{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);margin:0 0 var(--cds-gap-md)}
+.pc-grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:var(--cds-gap-lg)}
+.pc-legend{display:flex;flex-wrap:wrap;gap:var(--cds-gap-md);font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);margin-bottom:var(--cds-gap-sm)}
+.pc-legend span{display:inline-flex;align-items:center;gap:6px}
+.pc-sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.pc-sw-0{background:var(--pc-c0)}.pc-sw-1{background:var(--pc-c1)}
+.pc-sw-closed{background:repeating-linear-gradient(45deg,var(--cds-chart-grid),var(--cds-chart-grid) 2px,transparent 2px,transparent 5px);border:1px solid var(--cds-chart-grid)}
+.pc-sw-conf{background:transparent;border:2px solid var(--color-bad)}
+.pc-chart{position:relative;min-height:300px;overflow-x:auto}
+.pc-chart-sm{position:relative;min-height:200px}
+.pc-chart svg text,.pc-chart-sm svg text{fill:var(--cds-text-secondary);font-size:var(--cds-font-size-caption);font-family:var(--font-anthropic-sans)}
+.pc-chart svg text.pc-barlabel{fill:#fff;font-size:11px;font-weight:600;pointer-events:none;stroke:rgba(0,0,0,.45);stroke-width:2.5px;paint-order:stroke;stroke-linejoin:round}
+.pc-chart svg text.pc-guia{fill:var(--color-fg);font-weight:600}
+.pc-chart svg{touch-action:none}
+.pc-chart g.pc-bar-g{cursor:grab}
+.pc-chart g.pc-bar-g.pc-dragging{cursor:grabbing}
+.pc-tip{position:absolute;pointer-events:none;background:var(--cds-surface-popover);border:1px solid var(--cds-border);box-shadow:var(--cds-shadow-popover);border-radius:var(--cds-radius);padding:8px 10px;font-size:var(--cds-font-size-caption);line-height:1.45;white-space:nowrap;z-index:5}
+.pc-tip b{font-weight:var(--cds-font-weight-medium)}
+.pc-tip .pc-tip-m{color:var(--cds-text-secondary)}
+.pc-toolbar{display:flex;align-items:center;gap:var(--cds-gap-sm);flex-wrap:wrap;margin-bottom:var(--cds-gap-md)}
+.pc-toolbar label,.pc-field label{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.pc-field{display:flex;flex-direction:column;gap:4px}
+.pc-field input{font:inherit;font-size:var(--cds-font-size-body);padding:5px 8px;border-radius:var(--cds-radius);border:1px solid var(--color-border-line);background:var(--color-bg);color:var(--color-fg)}
+.pc-periodo{display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--cds-gap-md)}
+.pc-btn{appearance:none;font:inherit;font-size:var(--cds-font-size-caption);padding:6px 12px;border-radius:var(--cds-radius);border:1px solid var(--color-border-line);background:var(--color-bg);color:var(--color-fg);cursor:pointer}
+.pc-btn:hover{border-color:var(--color-fg-muted)}
+.pc-btn-pri{background:var(--color-fg);color:var(--color-bg);border-color:var(--color-fg)}
+.pc-aj-dica{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.pc-aj-dica b{color:var(--color-fg)}
+.pc-tablewrap{overflow-x:auto}
+.pc-table{width:100%;border-collapse:collapse;font-size:var(--cds-font-size-body);font-variant-numeric:tabular-nums}
+.pc-table th{text-align:left;font-weight:var(--cds-font-weight-medium);font-size:var(--cds-font-size-caption);color:var(--color-fg-muted);padding:6px 10px;border-bottom:1px solid var(--color-border-line);white-space:nowrap}
+.pc-table td{padding:6px 10px;border-bottom:1px solid var(--color-border-line);white-space:nowrap}
+.pc-table .pc-num{text-align:right}
+.pc-pos{color:var(--color-ok)}.pc-neg{color:var(--color-bad)}
+.pc-tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:var(--cds-font-size-caption);background:var(--color-bg);border:1px solid var(--color-border-line);margin-right:4px}
+.pc-tag-bad{color:var(--color-bad)}
+.pc-tabs{display:flex;gap:4px;border-bottom:1px solid var(--color-border-line);flex-wrap:wrap}
+.pc-tabs button{appearance:none;background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;font:inherit;font-size:var(--cds-font-size-body);color:var(--color-fg-muted);cursor:pointer;margin-bottom:-1px}
+.pc-tabs button[aria-selected="true"]{color:var(--color-fg);border-bottom-color:var(--color-fg);font-weight:var(--cds-font-weight-medium)}
+.pc-tab{display:flex;flex-direction:column;gap:var(--cds-gap-xl)}
+.pc-tab[hidden]{display:none}
+.pc-agenda td,.pc-agenda th{padding:8px 10px}
+.pc-agenda .pc-big{font-size:1.15em;font-weight:var(--cds-font-weight-medium)}
+.pc-agenda .pc-blank{min-width:110px;border-bottom:1px solid var(--color-border-line)}
+.pc-upload{display:flex;flex-wrap:wrap;align-items:center;gap:var(--cds-gap-md)}
+.pc-upload input[type=file]{font:inherit;font-size:var(--cds-font-size-caption);max-width:100%}
+.pc-msg{margin:var(--cds-gap-sm) 0 0;font-size:var(--cds-font-size-caption)}
+.pc-msg-ok{color:var(--color-ok)}.pc-msg-bad{color:var(--color-bad)}.pc-msg-wait{color:var(--color-fg-muted)}
+.pc-notes summary{cursor:pointer;font-weight:var(--cds-font-weight-medium)}
+.pc-notes ul{margin:var(--cds-gap-sm) 0 0;padding-left:1.2em;color:var(--color-fg-muted);line-height:1.6}
+.pc-manual{margin-top:var(--cds-gap-xl);padding-top:var(--cds-gap-lg);border-top:1px solid var(--color-border-line)}
+.pc-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--cds-gap-sm);margin-bottom:var(--cds-gap-md)}
+.pc-check{display:flex;gap:6px;align-items:center;font-size:var(--cds-font-size-caption);margin:0 0 var(--cds-gap-md)}
+.pc-lista{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:4px;font-size:var(--cds-font-size-caption)}
+.pc-lista li{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--color-border-line)}
+@media print{.pc-tabs,.pc-toolbar,#dados,#periodo-ctl{display:none !important}.pc-printing-agenda #cabecalho{display:none !important}.pc-print-page{break-before:page}}
+</style>
+
+<div class="pc-wrap" id="portal">
+  <header id="cabecalho">
+    <h1 class="pc-title">Programação de carregamento</h1>
+    <p class="pc-lede" data-read lang="pt-BR">De <b data-draw="lede-de">—</b> a <b data-draw="lede-ate">—</b>: <b data-draw="lede-cargas" data-source="kpis" data-field="cargas" data-row="0">—</b> cargas e <b data-draw="lede-vol" data-source="kpis" data-field="volumes" data-row="0">—</b> volumes. A última termina em <b data-draw="lede-termino" data-source="kpis" data-field="termino" data-row="0">—</b>.</p>
+  </header>
+
+  <section class="pc-card" id="dados">
+    <h2 class="pc-h2">Dados</h2>
+    <p class="pc-sub" data-read lang="pt-BR">Importe cada arquivo separadamente. Atualizar a separação não mexe na programação, e atualizar a programação não mexe na separação.</p>
+    <div class="pc-grid2">
+      <div id="imp-prog">
+        <h3 class="pc-h3">Programação (rotas, carros e motoristas)</h3>
+        <p class="pc-sub" data-read lang="pt-BR">Arquivo como o PROGRAMAÇÃO_23: Rota, Data carregamento, Hora Carregamento, Transportadora, Modal, Motorista, Placa, Volume (Ajudante opcional). Substitui só os dias que vierem no arquivo.</p>
+        <div class="pc-upload"><input type="file" id="pc-arq-prog" accept=".xlsx,.csv" aria-label="Arquivo de programação"></div>
+        <p class="pc-msg pc-msg-wait" id="pc-prog-lendo" hidden>Lendo e salvando a programação…</p>
+        <p class="pc-msg pc-msg-ok" id="pc-prog-ok" hidden>Programação salva.</p>
+        <p class="pc-msg pc-msg-bad" id="pc-prog-formato" hidden>Não consegui ler o arquivo. Ele precisa ter as colunas Rota, Data carregamento e Hora Carregamento.</p>
+        <p class="pc-msg pc-msg-bad" id="pc-prog-salvar" hidden>Não foi salvo. Só quem pode editar o portal consegue importar.</p>
+        <p class="pc-msg" data-read lang="pt-BR">Dias carregados: <b data-draw="prog-dias" data-source="programacao_dias">—</b></p>
+      </div>
+      <div id="imp-sep">
+        <h3 class="pc-h3">Separação (volumes por rota)</h3>
+        <p class="pc-sub" data-read lang="pt-BR">Arquivo como o de Separação: Rota, Carregam. (ex.: "Domingo 22/11"), Horário, Pen, Sep, OK e Status. Vale sempre o último enviado.</p>
+        <div class="pc-upload"><input type="file" id="pc-arq-sep" accept=".xlsx,.csv" aria-label="Arquivo de separação"></div>
+        <p class="pc-msg pc-msg-wait" id="pc-sep-lendo" hidden>Lendo e salvando a separação…</p>
+        <p class="pc-msg pc-msg-ok" id="pc-sep-ok" hidden>Separação salva.</p>
+        <p class="pc-msg pc-msg-bad" id="pc-sep-formato" hidden>Não consegui ler o arquivo. Ele precisa ter as colunas Rota, Carregam., Horário, Pen, Sep e OK.</p>
+        <p class="pc-msg pc-msg-bad" id="pc-sep-salvar" hidden>Não foi salvo. Só quem pode editar o portal consegue importar.</p>
+        <p class="pc-msg" data-read lang="pt-BR">Última separação: <b data-draw="sep-hora" data-source="separacao_resumo" data-field="atualizado" data-row="0">—</b> · <b data-draw="sep-pct" data-source="separacao_resumo" data-field="pct_volumes" data-row="0">—</b> dos volumes do período separados</p>
+      </div>
+    </div>
+    <div class="pc-grid2 pc-manual">
+      <form id="man-sep" autocomplete="off">
+        <h3 class="pc-h3">Lançar rota do dia com volumes</h3>
+        <p class="pc-sub" data-read lang="pt-BR">Para incluir uma rota que não veio no arquivo de separação ou corrigir os volumes de uma rota. Continua valendo depois de novas importações.</p>
+        <div class="pc-form-grid">
+          <div class="pc-field"><label for="ms-rota">Rota</label><input id="ms-rota" required placeholder="SPTQ101"></div>
+          <div class="pc-field"><label for="ms-data">Data do carregamento</label><input id="ms-data" type="date" required></div>
+          <div class="pc-field"><label for="ms-hora">Horário</label><input id="ms-hora" type="time" required></div>
+          <div class="pc-field"><label for="ms-vol">Volumes (total)</label><input id="ms-vol" type="number" min="1" step="1" required></div>
+          <div class="pc-field"><label for="ms-sep">Já separados</label><input id="ms-sep" type="number" min="0" step="1" value="0"></div>
+        </div>
+        <button type="submit" class="pc-btn pc-btn-pri">Salvar rota</button>
+        <p class="pc-msg pc-msg-ok" id="pc-ms-ok" hidden>Rota salva.</p>
+        <p class="pc-msg pc-msg-bad" id="pc-ms-erro" hidden>Não foi salvo. Confira os campos (separados não pode passar do total) ou se você pode editar o portal.</p>
+        <div data-draw="lista-ms" data-source="separacao_manual"></div>
+      </form>
+      <form id="man-prog" autocomplete="off">
+        <h3 class="pc-h3">Incluir na programação</h3>
+        <p class="pc-sub" data-read lang="pt-BR">Rota, horário, carro e motorista. Se a rota já existe nesse dia, os campos preenchidos aqui substituem os importados.</p>
+        <div class="pc-form-grid">
+          <div class="pc-field"><label for="mp-rota">Rota</label><input id="mp-rota" required placeholder="SPTQ101"></div>
+          <div class="pc-field"><label for="mp-data">Data do carregamento</label><input id="mp-data" type="date" required></div>
+          <div class="pc-field"><label for="mp-hora">Horário</label><input id="mp-hora" type="time" required></div>
+          <div class="pc-field"><label for="mp-transp">Transportadora</label><input id="mp-transp"></div>
+          <div class="pc-field"><label for="mp-modal">Carro (modal)</label><input id="mp-modal" placeholder="TQ, VC, HR…"></div>
+          <div class="pc-field"><label for="mp-mot">Motorista</label><input id="mp-mot"></div>
+          <div class="pc-field"><label for="mp-placa">Placa</label><input id="mp-placa"></div>
+          <div class="pc-field"><label for="mp-ajud">Ajudante</label><input id="mp-ajud"></div>
+        </div>
+        <label class="pc-check"><input type="checkbox" id="mp-ant"> Separação e carregamento antecipados (pode começar até 6h antes)</label>
+        <button type="submit" class="pc-btn pc-btn-pri">Salvar na programação</button>
+        <p class="pc-msg pc-msg-ok" id="pc-mp-ok" hidden>Programação salva.</p>
+        <p class="pc-msg pc-msg-bad" id="pc-mp-erro" hidden>Não foi salvo. Preencha rota, data e horário, ou confira se você pode editar o portal.</p>
+        <div data-draw="lista-mp" data-source="programacao_manual"></div>
+      </form>
+    </div>
+  </section>
+
+  <section class="pc-card" id="periodo-ctl">
+    <h2 class="pc-h2">Período</h2>
+    <div class="pc-periodo">
+      <div class="pc-field"><label for="pc-de">De</label><input type="datetime-local" id="pc-de" step="1800"></div>
+      <div class="pc-field"><label for="pc-ate">Até</label><input type="datetime-local" id="pc-ate" step="1800"></div>
+      <button type="button" class="pc-btn pc-btn-pri" id="pc-aplicar">Aplicar</button>
+      <button type="button" class="pc-btn" id="pc-noite-ant">◀ Noite anterior</button>
+      <button type="button" class="pc-btn" id="pc-noite-prox">Próxima noite ▶</button>
+      <button type="button" class="pc-btn" id="pc-dia-todo">Dia inteiro</button>
+    </div>
+  </section>
+
+  <nav class="pc-tabs" role="tablist" aria-label="Abas do portal">
+    <button type="button" role="tab" data-tab="plano" aria-selected="true">Plano de carregamento</button>
+    <button type="button" role="tab" data-tab="agendamento" aria-selected="false">Agendamento dos motoristas</button>
+  </nav>
+
+  <div class="pc-tab" id="plano">
+  <section class="pc-tiles" id="indicadores">
+    <div class="pc-tile" id="tile-cargas">
+      <span class="pc-tile-label">Cargas no período</span>
+      <span class="pc-tile-value" data-draw="kpi-cargas" data-source="kpis" data-field="cargas" data-row="0">—</span>
+    </div>
+    <div class="pc-tile" id="tile-volumes">
+      <span class="pc-tile-label">Volumes a carregar</span>
+      <span class="pc-tile-value" data-draw="kpi-volumes" data-source="kpis" data-field="volumes" data-row="0">—</span>
+    </div>
+    <div class="pc-tile" id="tile-termino">
+      <span class="pc-tile-label">Última carga termina</span>
+      <span class="pc-tile-value" data-draw="kpi-termino" data-source="kpis" data-field="termino" data-row="0">—</span>
+    </div>
+    <div class="pc-tile" id="tile-atraso">
+      <span class="pc-tile-label">Começam depois do horário</span>
+      <span class="pc-tile-value" data-draw="kpi-atraso" data-source="kpis" data-field="atrasadas" data-row="0">—</span>
+    </div>
+    <div class="pc-tile" id="tile-corte">
+      <span class="pc-tile-label">Passam do corte das 05h</span>
+      <span class="pc-tile-value" data-draw="kpi-corte" data-source="kpis" data-field="passam_corte" data-row="0">—</span>
+    </div>
+  </section>
+
+  <section class="pc-card" id="linha-do-tempo">
+    <h2 class="pc-h2">Ocupação das docas</h2>
+    <p class="pc-sub">Cada barra é uma carga, do início ao fim do carregamento. A parte forte da barra é o que já está separado e a parte clara é o que falta. Passe o mouse ou toque para ver os detalhes.</p>
+    <div class="pc-legend">
+      <span><i class="pc-sw pc-sw-0"></i>Começa no horário ou antes</span>
+      <span><i class="pc-sw pc-sw-1"></i>Começa depois do horário planejado</span>
+      <span><i class="pc-sw pc-sw-closed"></i>Doca fechada</span>
+      <span><i class="pc-sw pc-sw-conf"></i>Conflito na mesma doca</span>
+    </div>
+    <div class="pc-toolbar">
+      <span class="pc-aj-dica">Arraste uma barra para os lados para mudar o horário, ou para cima/baixo para mudar a doca (passos de 5 min). Fica salvo para todos.</span>
+      <span class="pc-aj-dica">Rotas ajustadas à mão: <b data-draw="aj-count" data-source="ajustes">—</b></span>
+      <button type="button" class="pc-btn" id="pc-aj-reset">Voltar ao plano calculado</button>
+    </div>
+    <p class="pc-msg pc-msg-bad" id="pc-aj-erro" hidden>O ajuste não foi salvo. Só quem pode editar o portal consegue mover as cargas.</p>
+    <div class="pc-chart" data-draw="gantt" data-source="programacao_aj"></div>
+  </section>
+
+  <section class="pc-card" id="uso-docas">
+    <h2 class="pc-h2">Docas em uso × docas disponíveis</h2>
+    <p class="pc-sub">A linha mostra quantas docas existem: 7 das 21h às 05h e 4 no resto do dia.</p>
+    <div class="pc-chart-sm" data-draw="ocupacao" data-source="ocupacao"></div>
+  </section>
+
+  <section class="pc-card" id="lista-cargas">
+    <h2 class="pc-h2">Sequência de carregamento</h2>
+    <div class="pc-toolbar">
+      <label for="pc-filtro-doca">Doca</label>
+      <select class="dash-select" id="pc-filtro-doca" aria-label="Filtrar por doca">
+        <option value="">Todas as docas</option>
+        <option>Doca 1</option><option>Doca 2</option><option>Doca 3</option><option>Doca 4</option><option>Doca 5</option><option>Doca 6</option><option>Doca 7</option>
+      </select>
+    </div>
+    <div class="pc-tablewrap">
+      <table class="pc-table" data-source="programacao_aj" data-row-key="chave">
+        <thead><tr>
+          <th data-field="ordem" class="pc-num">#</th>
+          <th data-field="rota">Rota</th>
+          <th data-field="doca">Doca</th>
+          <th data-field="horario_planejado">Planejado</th>
+          <th data-field="inicio">Início</th>
+          <th data-field="fim">Fim</th>
+          <th data-field="volumes" class="pc-num">Volumes</th>
+          <th data-field="tempo_min" class="pc-num">Tempo</th>
+          <th data-field="antecipacao_min" class="pc-num">Antecipação</th>
+          <th data-field="pct_separado" class="pc-num">% separado</th>
+          <th data-field="transportadora">Transportadora</th>
+          <th data-field="motorista">Motorista</th>
+          <th data-field="obs">Observação</th>
+        </tr></thead>
+        <tbody data-draw="tabela"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <details class="pc-notes" id="premissas">
+    <summary>Como o plano é calculado</summary>
+    <ul data-read lang="pt-BR">
+      <li>Entram as rotas da programação importada e as rotas da separação que ainda não estão finalizadas, com horário dentro do período escolhido.</li>
+      <li>Rota da programação e da separação são a mesma quando o código bate, mesmo com outro tipo de carro (ex.: SOTQ126 = SOVC126).</li>
+      <li>Volumes = Pen + Sep + OK da última separação. Sem dado de separação, o volume é estimado pelo peso da programação.</li>
+      <li>Tempo de carregamento: 290 volumes em 1h20. Docas: 7 das 21h às 05h, 4 no resto do dia (as docas 5 a 7 só abrem às 21h).</li>
+      <li>Cada carga pode começar até 1h antes do horário planejado. Rotas marcadas para antecipar (NEXXA) podem começar até 6h antes. Se uma carga da noite fosse passar das 05h, ela também é adiantada.</li>
+      <li>Rotas arrastadas na linha do tempo ficam onde foram colocadas; as demais se encaixam nas docas livres.</li>
+    </ul>
+  </details>
+  </div>
+
+  <section class="pc-tab" id="agendamento" hidden>
+    <div class="pc-card">
+      <h2 class="pc-h2">Agendamento de chegada dos motoristas</h2>
+      <p class="pc-sub" data-read lang="pt-BR">Período: <b data-draw="ag-periodo">—</b>. O motorista deve chegar no horário indicado e se apresentar na doca. O horário de chegada é a meia hora cheia anterior ao início do carregamento.</p>
+      <div class="pc-tablewrap">
+        <table class="pc-table pc-agenda" data-source="agendamento" data-row-key="chave">
+          <thead><tr>
+            <th data-field="seq" class="pc-num">#</th>
+            <th data-field="chegada">Chegada do motorista</th>
+            <th data-field="rota">Rota</th>
+            <th data-field="doca">Doca</th>
+            <th data-field="modal">Carro</th>
+            <th data-field="transportadora">Transportadora</th>
+            <th data-field="motorista">Motorista</th>
+            <th data-field="placa">Placa</th>
+            <th data-field="ajudante">Ajudante</th>
+            <th data-field="inicio">Início do carregamento</th>
+            <th data-field="volumes" class="pc-num">Volumes</th>
+            <th>Chegou às</th>
+          </tr></thead>
+          <tbody data-draw="agenda"></tbody>
+        </table>
+      </div>
+      <p class="pc-sub" data-read lang="pt-BR">Coluna "Chegou às" para anotação na portaria.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+window.PC = (function () {
+  const pad = (n) => String(n).padStart(2, '0');
+  const EPOCH = Date.UTC(2026, 0, 1);
+  function abs(iso) {
+    if (!iso) return null;
+    const s = String(iso);
+    const y = +s.slice(0, 4), mo = +s.slice(5, 7), d = +s.slice(8, 10), h = +s.slice(11, 13) || 0, mi = +s.slice(14, 16) || 0;
+    return Math.round((Date.UTC(y, mo - 1, d, h, mi) - EPOCH) / 60000);
+  }
+  function iso(m) { const t = new Date(EPOCH + m * 60000); return t.getUTCFullYear() + '-' + pad(t.getUTCMonth() + 1) + '-' + pad(t.getUTCDate()) + 'T' + pad(t.getUTCHours()) + ':' + pad(t.getUTCMinutes()); }
+  function hhmm(m) { const t = new Date(EPOCH + m * 60000); return pad(t.getUTCHours()) + ':' + pad(t.getUTCMinutes()); }
+  function lab(m) { const t = new Date(EPOCH + m * 60000); return pad(t.getUTCDate()) + '/' + pad(t.getUTCMonth() + 1) + ' ' + pad(t.getUTCHours()) + ':' + pad(t.getUTCMinutes()); }
+  const nf = new Intl.NumberFormat('pt-BR');
+  function prep(rows) {
+    return rows.map((r) => ({
+      ...r,
+      ordem: +r.ordem, volumes: +r.volumes, tempo_min: +r.tempo_min, antecipacao_min: +r.antecipacao_min,
+      ini: abs(r.inicio), fimM: abs(r.fim), plan: abs(r.horario_planejado),
+      docaN: +String(r.doca).replace(/\D/g, '')
+    }));
+  }
+  return { pad, abs, iso, hhmm, lab, nf, prep, filtroDoca: '', pend: {}, N1: 4, N2: 7 };
+})();
+
+dash.calc('rotas', {
+  title: 'Rotas (programação + separação)',
+  description: 'Junta a programação importada (horário, carro, motorista) com a última separação (volumes). Rotas só da separação entram se não estiverem finalizadas.',
+  inputs: ['programacao_dias', 'separacao_uploads', 'programacao_manual', 'separacao_manual'],
+  fn: (programacao_dias, separacao_uploads, programacao_manual, separacao_manual) => {
+    const key = (c) => String(c || '').trim().toUpperCase().replace(/^([A-Z]{2})[A-Z]{2}/, '$1');
+    const prog = [];
+    for (const d of programacao_dias) { let rs = []; try { rs = JSON.parse(d.rotas); } catch (e) { rs = []; } for (const r of rs) if (r && r.rota && r.data && r.hora) prog.push(r); }
+    const pIdx = {}; for (const p of prog) pIdx[p.data + '|' + String(p.rota).toUpperCase()] = p;
+    for (const m of programacao_manual) {
+      if (!m || !m.rota || !m.data || !m.hora) continue;
+      const k = m.data + '|' + String(m.rota).toUpperCase();
+      const base = pIdx[k] || { rota: String(m.rota).toUpperCase(), data: m.data, peso: 0 };
+      const novo = { ...base };
+      for (const f of ['hora', 'transportadora', 'modal', 'motorista', 'placa', 'ajudante']) if (m[f]) novo[f] = m[f];
+      novo.antecipar = !!m.antecipar || !!base.antecipar; novo.manual = true;
+      if (pIdx[k]) prog[prog.indexOf(pIdx[k])] = novo; else prog.push(novo);
+      pIdx[k] = novo;
+    }
+    let linhas = [];
+    if (separacao_uploads.length) {
+      const u = separacao_uploads.slice().sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)).pop();
+      try { linhas = JSON.parse(u.linhas); } catch (e) { linhas = []; }
+    }
+    linhas = linhas.filter((l) => l && l.rota && l.data).map((l) => ({ ...l, rota: String(l.rota).split(' / ').pop().trim() }));
+    const lIdx = {}; linhas.forEach((l, i) => { lIdx[l.data + '|' + String(l.rota).toUpperCase()] = i; });
+    for (const m of separacao_manual) {
+      if (!m || !m.rota || !m.data) continue;
+      const k = m.data + '|' + String(m.rota).toUpperCase();
+      const l = { rota: String(m.rota).toUpperCase(), data: m.data, hora: m.hora, pendente: Number(m.pendente || 0), pend_conf: 0, ok: Number(m.ok || 0), status: 'Lançada à mão', manual: true };
+      if (lIdx[k] !== undefined) linhas[lIdx[k]] = l; else { lIdx[k] = linhas.length; linhas.push(l); }
+    }
+    const exato = {}, aprox = {};
+    for (const l of linhas) { exato[l.data + '|' + String(l.rota).toUpperCase()] = l; const k = l.data + '|' + key(l.rota); if (!aprox[k]) aprox[k] = l; }
+    const usadas = new Set();
+    const out = [];
+    const montar = (p, l) => {
+      const rota = p ? p.rota : String(l.rota).trim();
+      const data = p ? p.data : l.data;
+      const hora = (p && p.hora) || (l && l.hora);
+      if (!hora) return null;
+      const obs = [];
+      let volumes, fonte;
+      if (l) { volumes = Number(l.pendente || 0) + Number(l.pend_conf || 0) + Number(l.ok || 0); fonte = 'separacao'; if (String(l.rota).trim().toUpperCase() !== rota.toUpperCase()) obs.push('Na separação: ' + String(l.rota).trim()); }
+      else { volumes = Math.max(1, Math.round(Number(p.peso || 0) * 0.127)); fonte = 'peso'; obs.push('Sem dado na separação: volume estimado pelo peso'); }
+      if (!p) obs.push('Só na separação (sem carro na programação)');
+      if (p && p.antecipar) obs.push('Antecipada');
+      if (l && l.manual) obs.push('Volumes lançados à mão');
+      if (p && p.manual) obs.push('Programação lançada à mão');
+      return {
+        chave: rota + '_' + data, rota, data, horario_planejado: data + 'T' + hora, volumes, vol_fonte: fonte,
+        pendente: l ? Number(l.pendente || 0) : null, separados: l ? Number(l.pend_conf || 0) + Number(l.ok || 0) : null,
+        status: l ? l.status || '' : 'Sem separação',
+        transportadora: (p && p.transportadora) || '', modal: (p && p.modal) || '', motorista: (p && p.motorista) || '',
+        placa: (p && p.placa) || '', ajudante: (p && p.ajudante) || '', antecipar: !!(p && p.antecipar), obs: obs.join(' · ')
+      };
+    };
+    for (const p of prog) {
+      const l = exato[p.data + '|' + p.rota.toUpperCase()] || aprox[p.data + '|' + key(p.rota)];
+      if (l) usadas.add(l);
+      const r = montar(p, l); if (r) out.push(r);
+    }
+    for (const l of linhas) {
+      if (usadas.has(l) || l.status === 'Finalizado') continue;
+      const r = montar(null, l); if (r) out.push(r);
+    }
+    return out;
+  }
+});
+
+dash.calc('programacao_aj', {
+  title: 'Plano de carregamento do período',
+  description: 'Distribui nas docas as rotas com horário dentro do período: 290 volumes em 1h20; 7 docas das 21h às 05h e 4 no resto do dia; cada carga pode começar até 1h antes do horário (6h nas rotas antecipadas ou que passariam das 05h); rotas arrastadas à mão ficam onde foram postas.',
+  inputs: ['rotas', 'ajustes'],
+  fn: (rotas, ajustes) => {
+    const pad = (n) => String(n).padStart(2, '0');
+    const EPOCH = Date.UTC(2026, 0, 1);
+    const abs = (s) => { s = String(s); return Math.round((Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), +s.slice(11, 13) || 0, +s.slice(14, 16) || 0) - EPOCH) / 60000); };
+    const iso = (m) => { const t = new Date(EPOCH + m * 60000); return t.getUTCFullYear() + '-' + pad(t.getUTCMonth() + 1) + '-' + pad(t.getUTCDate()) + 'T' + pad(t.getUTCHours()) + ':' + pad(t.getUTCMinutes()); };
+    const prm = dash.params();
+    if (!prm.de || !prm.ate) return [];
+    const de = abs(prm.de), ate = abs(prm.ate);
+    const N1 = 4, N2 = 7, ANT = 60, ANT_PRI = 360, RATE = 80 / 290;
+    const hourOf = (m) => (((m % 1440) + 1440) % 1440) / 60;
+    const noite = (m) => { const h = hourOf(m); return h >= 21 || h < 5; };
+    const abre = (m, k) => { if (k < N1 || noite(m)) return m; let t = Math.floor(m / 1440) * 1440 + 21 * 60; if (t < m) t += 1440; return t; };
+    const aj = {};
+    for (const a of ajustes) if (a && a.rota && a.inicio) { if (a.data) aj[a.rota + '_' + a.data] = a; else if (!aj['*' + a.rota]) aj['*' + a.rota] = a; }
+    const sel = rotas.map((r) => ({ ...r, h: abs(r.horario_planejado), dur: Math.max(1, Math.ceil(Number(r.volumes) * RATE)) })).filter((r) => r.h >= de && r.h <= ate);
+    const occ = Array.from({ length: N2 }, () => []);
+    const livres = [];
+    for (const r of sel) {
+      const a = aj[r.chave] || aj['*' + r.rota];
+      if (a) { r.ini = abs(a.inicio); r.docaN = Math.min(N2, Math.max(1, +String(a.doca).replace(/\D/g, '') || 1)); r.ajustado = true; occ[r.docaN - 1].push([r.ini, r.ini + r.dur]); }
+      else { r.ajustado = false; r.rel = r.antecipar ? Math.max(de, r.h - ANT_PRI) : r.h - ANT; livres.push(r); }
+    }
+    const corteDe = (m) => { const hh = hourOf(m); if (!(hh >= 18 || hh < 5)) return null; let c = Math.floor(m / 1440) * 1440 + 5 * 60; if (hh >= 18) c += 1440; return c; };
+    const encaixar = () => {
+    livres.sort((a, b) => (a.rel - b.rel) || (b.dur - a.dur));
+    const livre = Array.from({ length: N2 }, () => -Infinity);
+    for (const r of livres) {
+      let best = null;
+      for (let k = 0; k < N2; k++) {
+        let st = abre(Math.max(livre[k], r.rel), k);
+        let mudou = true, guard = 0;
+        while (mudou && guard++ < 50) {
+          mudou = false;
+          for (const [a, b] of occ[k]) if (st < b && st + r.dur > a) { st = abre(b, k); mudou = true; }
+        }
+        if (!best || st < best.st) best = { k, st };
+      }
+      r.ini = best.st; r.docaN = best.k + 1; livre[best.k] = r.ini + r.dur;
+    }
+    };
+    encaixar();
+    for (let volta = 0; volta < 3; volta++) {
+      const tarde = livres.filter((r) => { const c = corteDe(r.h); return c !== null && r.ini + r.dur > c && r.rel > Math.max(de, r.h - ANT_PRI); });
+      if (!tarde.length) break;
+      for (const r of tarde) { r.rel = Math.max(de, r.h - ANT_PRI); r.adiantada = true; }
+      encaixar();
+    }
+    const out = sel.map((r) => {
+      const fim = r.ini + r.dur;
+      const corte = corteDe(r.h);
+      const pct = r.separados === null || r.separados === undefined ? null : (r.volumes > 0 ? Math.round((r.separados / r.volumes) * 1000) / 10 : 100);
+      const { h, dur, rel, ini, docaN, adiantada, ...resto } = r;
+      if (adiantada) resto.obs = [resto.obs, 'Adiantada para não passar das 05h'].filter(Boolean).join(' · ');
+      return { ...resto, inicio: iso(r.ini), fim: iso(fim), doca: 'Doca ' + r.docaN, tempo_min: r.dur, antecipacao_min: r.h - r.ini, passa_corte: corte !== null && fim > corte, pct_separado: pct };
+    });
+    out.sort((a, b) => (a.inicio < b.inicio ? -1 : a.inicio > b.inicio ? 1 : a.doca.localeCompare(b.doca)));
+    return out.map((r, i) => ({ ...r, ordem: i + 1 }));
+  }
+});
+
+dash.calc('kpis', {
+  title: 'Indicadores do período',
+  description: 'Cargas e volumes do período, quando termina a última, quantas começam depois do horário planejado e quantas passam do corte das 05h.',
+  inputs: ['programacao_aj'],
+  fn: (programacao_aj) => {
+    const lastFim = programacao_aj.map((r) => r.fim).sort().pop() || '';
+    return [{
+      cargas: programacao_aj.length,
+      volumes: programacao_aj.reduce((a, r) => a + Number(r.volumes), 0),
+      termino: lastFim ? lastFim.slice(8, 10) + '/' + lastFim.slice(5, 7) + ' ' + lastFim.slice(11, 16) : '',
+      atrasadas: programacao_aj.filter((r) => Number(r.antecipacao_min) < 0).length,
+      passam_corte: programacao_aj.filter((r) => r.passa_corte === true).length
+    }];
+  }
+});
+
+dash.calc('ocupacao', {
+  title: 'Docas em uso no período',
+  description: 'Quantas cargas estão em carregamento em cada intervalo (10 min, ou 30 min em períodos de mais de 2 dias) e quantas docas existem nele.',
+  inputs: ['programacao_aj'],
+  fn: (programacao_aj) => {
+    const EPOCH = Date.UTC(2026, 0, 1);
+    const abs = (s) => { s = String(s); return Math.round((Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), +s.slice(11, 13) || 0, +s.slice(14, 16) || 0) - EPOCH) / 60000); };
+    const prm = dash.params();
+    if (!prm.de || !prm.ate) return [];
+    const de = abs(prm.de), ate = abs(prm.ate);
+    const passo = ate - de > 2880 ? 30 : 10;
+    const ivs = programacao_aj.map((r) => [abs(r.inicio), abs(r.fim)]);
+    const out = [];
+    for (let t = de; t < ate; t += passo) {
+      const h = (((t % 1440) + 1440) % 1440) / 60;
+      out.push({ minuto: t, em_uso: ivs.filter(([a, b]) => a <= t && b > t).length, disponiveis: h >= 21 || h < 5 ? 7 : 4 });
+    }
+    return out;
+  }
+});
+
+dash.calc('agendamento', {
+  title: 'Agendamento de chegada dos motoristas',
+  description: 'Para cada rota do período, a chegada do motorista é o início do carregamento arredondado para a meia hora cheia anterior.',
+  inputs: ['programacao_aj'],
+  fn: (programacao_aj) => {
+    const lab = (s) => s.slice(8, 10) + '/' + s.slice(5, 7) + ' ' + s.slice(11, 16);
+    return programacao_aj.map((r, i) => {
+      const mm = +r.inicio.slice(14, 16);
+      const cheg = r.inicio.slice(0, 14) + (mm >= 30 ? '30' : '00');
+      return { seq: i + 1, chave: r.chave, chegada: lab(cheg), rota: r.rota, doca: r.doca, modal: r.modal || '', transportadora: r.transportadora || '', motorista: r.motorista || '', placa: r.placa || '', ajudante: r.ajudante || '', inicio: lab(r.inicio), volumes: Number(r.volumes) };
+    });
+  }
+});
+
+dash.calc('separacao_resumo', {
+  title: 'Resumo da separação no período',
+  description: 'Percentual dos volumes das cargas do período que já saíram da separação (Sep + OK), segundo o último arquivo de separação.',
+  inputs: ['programacao_aj', 'separacao_uploads'],
+  fn: (programacao_aj, separacao_uploads) => {
+    if (!separacao_uploads.length) return [];
+    const u = separacao_uploads.slice().sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)).pop();
+    const comSep = programacao_aj.filter((r) => r.separados !== null && r.separados !== undefined);
+    const tot = comSep.reduce((s, r) => s + Number(r.volumes), 0);
+    const sep = comSep.reduce((s, r) => s + Number(r.separados), 0);
+    const d = new Date(u.at); const pad = (n) => String(n).padStart(2, '0');
+    return [{ pct_volumes: tot ? Math.round((sep / tot) * 1000) / 10 : 0, atualizado: pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) }];
+  }
+});
+
+function pcKpi(name, field, fmt) {
+  dash.draw(name, (el) => {
+    const k = dash.data('kpis');
+    if (k.status !== 'ok' || !Array.isArray(k.data) || !k.data.length) { el.textContent = '—'; return; }
+    el.textContent = fmt(k.data[0][field]);
+  });
+}
+const pcN = (v) => PC.nf.format(v || 0), pcT = (v) => v || '—';
+pcKpi('kpi-cargas', 'cargas', pcN); pcKpi('kpi-volumes', 'volumes', pcN); pcKpi('kpi-termino', 'termino', pcT);
+pcKpi('kpi-atraso', 'atrasadas', pcN); pcKpi('kpi-corte', 'passam_corte', pcN);
+pcKpi('lede-cargas', 'cargas', pcN); pcKpi('lede-vol', 'volumes', pcN); pcKpi('lede-termino', 'termino', pcT);
+dash.draw('lede-de', (el) => { const p = dash.params(); if (PC.mostrarPeriodo) PC.mostrarPeriodo(); el.textContent = p.de ? PC.lab(PC.abs(p.de)) : '—'; });
+dash.draw('lede-ate', (el) => { const p = dash.params(); el.textContent = p.ate ? PC.lab(PC.abs(p.ate)) : '—'; });
+dash.draw('ag-periodo', (el) => { const p = dash.params(); el.textContent = p.de && p.ate ? PC.lab(PC.abs(p.de)) + ' a ' + PC.lab(PC.abs(p.ate)) : '—'; });
+function pcSep(name, field, fmt) {
+  dash.draw(name, (el) => {
+    const k = dash.data('separacao_resumo');
+    if (k.status !== 'ok' || !Array.isArray(k.data) || !k.data.length) { el.textContent = '—'; return; }
+    el.textContent = fmt(k.data[0][field]);
+  });
+}
+pcSep('sep-hora', 'atualizado', pcT);
+pcSep('sep-pct', 'pct_volumes', (v) => String(v).replace('.', ',') + '%');
+dash.draw('prog-dias', (el) => {
+  const d = dash.data('programacao_dias');
+  // período padrão: a noite (18h → 06h) da próxima carga programada
+  if (!dash.params().de && (d.status === 'ok' || d.status === 'error')) {
+    const agora = new Date();
+    const hoje = agora.getFullYear() + '-' + PC.pad(agora.getMonth() + 1) + '-' + PC.pad(agora.getDate()) + 'T' + PC.pad(agora.getHours()) + ':' + PC.pad(agora.getMinutes());
+    const lim = PC.abs(hoje) - 360;
+    let prox = null;
+    if (d.status === 'ok' && Array.isArray(d.data)) for (const x of d.data) { let rs = []; try { rs = JSON.parse(x.rotas); } catch (e) {} for (const r of rs) { if (!r.data || !r.hora) continue; const m = PC.abs(r.data + 'T' + r.hora); if (m >= lim && (prox === null || m < prox)) prox = m; } }
+    if (prox === null) prox = PC.abs(hoje);
+    const dia = Math.floor(prox / 1440) * 1440;
+    const ini = (prox - dia) >= 12 * 60 ? dia + 18 * 60 : dia - 6 * 60;
+    dash.setParams({ de: PC.iso(ini), ate: PC.iso(ini + 12 * 60) });
+  }
+  if (d.status !== 'ok' || !Array.isArray(d.data) || !d.data.length) { el.textContent = 'nenhum'; return; }
+  el.textContent = d.data.map((x) => x.data).filter(Boolean).sort().map((s) => s.slice(8, 10) + '/' + s.slice(5, 7)).join(', ');
+});
+dash.draw('aj-count', (el) => { const a = dash.data('ajustes'); el.textContent = a.status === 'ok' && Array.isArray(a.data) ? String(a.data.length) : '—'; });
+function pcLista(name, ds, base, texto) {
+  dash.draw(name, (el) => {
+    const d = dash.data(ds); el.replaceChildren();
+    if (d.status !== 'ok' || !Array.isArray(d.data) || !d.data.length) return;
+    const t = document.createElement('p'); t.className = 'pc-sub'; t.textContent = 'Lançadas à mão (' + d.data.length + '):'; el.append(t);
+    const ul = document.createElement('ul'); ul.className = 'pc-lista';
+    for (const r of d.data.slice().sort((a, b) => String(a.data + a.hora).localeCompare(String(b.data + b.hora)))) {
+      const li = document.createElement('li');
+      const s = document.createElement('span'); s.textContent = texto(r); li.append(s);
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'pc-btn'; b.dataset.remover = base + r.id; b.textContent = 'Remover'; li.append(b);
+      ul.append(li);
+    }
+    el.append(ul);
+  });
+}
+const pcDH = (r) => String(r.data).slice(8, 10) + '/' + String(r.data).slice(5, 7) + ' ' + (r.hora || '');
+pcLista('lista-ms', 'separacao_manual', 'data/separacao/manual/', (r) => r.rota + ' · ' + pcDH(r) + ' · ' + PC.nf.format(Number(r.pendente || 0) + Number(r.ok || 0)) + ' vol (' + PC.nf.format(Number(r.ok || 0)) + ' separados)');
+pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.rota + ' · ' + pcDH(r) + [r.transportadora, r.modal, r.motorista, r.placa].filter(Boolean).map((x) => ' · ' + x).join('') + (r.antecipar ? ' · antecipada' : ''));
+</script>
+
+<script>
+(function () {
+  const colorOf = (r) => (r.antecipacao_min < 0 ? 'var(--pc-c1)' : 'var(--pc-c0)');
+  const root = document.getElementById('dash-root');
+  if (root) { root.style.setProperty('--pc-c0', dash.colors[0]); root.style.setProperty('--pc-c1', dash.colors[3] || dash.colors[1]); }
+
+  dash.draw('gantt', (el) => {
+    const src = dash.data('programacao_aj');
+    const prm = dash.params();
+    el.replaceChildren();
+    if (src.status !== 'ok' || !Array.isArray(src.data) || !prm.de) {
+      if (src.status === 'error') { const p = document.createElement('p'); p.className = 'pc-sub'; p.textContent = 'Falha ao carregar'; el.append(p); }
+      return;
+    }
+    const rows = PC.prep(src.data);
+    if (!rows.length) { const p = document.createElement('p'); p.className = 'pc-sub'; p.textContent = 'Nenhuma carga com horário neste período. Escolha outro período ou importe a programação/separação.'; el.append(p); return; }
+    for (const r of rows) {
+      const p = PC.pend[r.chave];
+      if (!p) continue;
+      if (r.ini === p.ini && r.docaN === p.docaN) { delete PC.pend[r.chave]; continue; }
+      r.ini = p.ini; r.fimM = p.ini + r.tempo_min; r.docaN = p.docaN; r.doca = 'Doca ' + p.docaN; r.antecipacao_min = r.plan - p.ini;
+    }
+    let d0 = Math.min(PC.abs(prm.de), ...rows.map((r) => r.ini)), d1 = Math.max(PC.abs(prm.ate), ...rows.map((r) => r.fimM));
+    d0 = Math.floor(d0 / 60) * 60; d1 = Math.ceil(d1 / 60) * 60;
+    const span = d1 - d0;
+    const minW = Math.max(320, el.clientWidth);
+    const W = Math.max(minW, Math.round(span / 60 * 70)), rowH = 36, top = 22, left = 62, right = 12, bottom = 26;
+    const H = top + PC.N2 * rowH + bottom;
+    const x = d3.scaleLinear().domain([d0, d1]).range([left, W - right]);
+    const y = (n) => top + (n - 1) * rowH;
+    const svg = d3.select(el).append('svg').attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
+      .attr('aria-label', 'Linha do tempo das 7 docas no período escolhido, com cada carga como uma barra do início ao fim do carregamento.');
+    const ticks = d3.range(d0, d1 + 1, 60);
+    svg.append('g').selectAll('line').data(ticks).join('line').attr('x1', x).attr('x2', x).attr('y1', top - 4).attr('y2', H - bottom).style('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(ticks).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle')
+      .text((d) => { const h = PC.hhmm(d); return h === '00:00' ? PC.lab(d).slice(0, 5) : h.slice(0, 2) + 'h'; });
+    // docas 5-7 fechadas fora de 21h–05h
+    const defs = svg.append('defs');
+    const pat = defs.append('pattern').attr('id', 'pc-hatch').attr('width', 6).attr('height', 6).attr('patternUnits', 'userSpaceOnUse').attr('patternTransform', 'rotate(45)');
+    pat.append('line').attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 6).style('stroke', 'var(--cds-chart-grid)').style('stroke-width', 3);
+    const fech = [];
+    for (let dia = Math.floor(d0 / 1440) * 1440 - 1440; dia < d1; dia += 1440) {
+      const a = Math.max(d0, dia + 5 * 60), b = Math.min(d1, dia + 21 * 60);
+      if (b > a) fech.push([a, b]);
+    }
+    svg.append('g').selectAll('rect').data(fech).join('rect').attr('x', (d) => x(d[0])).attr('width', (d) => x(d[1]) - x(d[0]))
+      .attr('y', y(PC.N1 + 1) + 4).attr('height', (PC.N2 - PC.N1) * rowH - 8).attr('rx', 4).style('fill', 'url(#pc-hatch)');
+    svg.append('g').selectAll('text').data(d3.range(1, PC.N2 + 1)).join('text').attr('x', 4).attr('y', (n) => y(n) + rowH / 2 + 4).text((n) => 'Doca ' + n);
+    // cortes das 05h e abertura das 21h
+    const refs = [];
+    for (let dia = Math.floor(d0 / 1440) * 1440; dia <= d1; dia += 1440) {
+      if (dia + 300 >= d0 && dia + 300 <= d1) refs.push({ m: dia + 300, t: 'corte 05h' });
+      if (dia + 1260 >= d0 && dia + 1260 <= d1) refs.push({ m: dia + 1260, t: '21h · +3 docas' });
+    }
+    svg.append('g').selectAll('line').data(refs).join('line').attr('x1', (d) => x(d.m)).attr('x2', (d) => x(d.m)).attr('y1', top - 6).attr('y2', H - bottom)
+      .style('stroke', 'var(--cds-chart-reference)').style('stroke-dasharray', '4 3');
+    svg.append('g').selectAll('text').data(refs).join('text').attr('x', (d) => x(d.m)).attr('y', top - 9).attr('text-anchor', 'middle').text((d) => d.t);
+    // tooltip
+    const tip = document.createElement('div'); tip.className = 'pc-tip'; tip.hidden = true; el.append(tip);
+    const pctTxt = (v) => String(v).replace('.', ',') + '%';
+    function show(ev, r) {
+      tip.replaceChildren();
+      const add = (txt, cls) => { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = txt; tip.append(d); };
+      const b = document.createElement('b'); b.textContent = r.rota + ' · ' + r.doca; tip.append(b);
+      add(PC.lab(r.ini) + ' → ' + PC.hhmm(r.fimM) + '  (' + r.tempo_min + ' min)');
+      add(PC.nf.format(r.volumes) + ' volumes' + (r.modal ? ' · ' + r.modal : '') + (r.transportadora ? ' · ' + r.transportadora : ''));
+      if (r.motorista || r.placa) add([r.motorista, r.placa, r.ajudante].filter(Boolean).join(' · '));
+      add('Planejado ' + PC.lab(r.plan) + ' · ' + (r.antecipacao_min > 0 ? 'antecipa ' + r.antecipacao_min + ' min' : r.antecipacao_min < 0 ? 'atrasa ' + (-r.antecipacao_min) + ' min' : 'no horário'), 'pc-tip-m');
+      if (r.pct_separado !== null && r.pct_separado !== undefined && r.pct_separado !== '') add('Separado: ' + pctTxt(r.pct_separado));
+      if (r.obs) add(r.obs, 'pc-tip-m');
+      tip.hidden = false;
+      const bx = el.getBoundingClientRect();
+      let lx = ev.clientX - bx.left + el.scrollLeft + 12; const ly = ev.clientY - bx.top + 12;
+      if (lx + tip.offsetWidth > el.scrollLeft + bx.width) lx = Math.max(0, lx - tip.offsetWidth - 24);
+      tip.style.left = lx + 'px'; tip.style.top = ly + 'px';
+    }
+    const conflito = new Set();
+    for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++) {
+      const a = rows[i], b = rows[j];
+      if (a.docaN === b.docaN && a.ini < b.fimM && b.ini < a.fimM) { conflito.add(a.chave); conflito.add(b.chave); }
+    }
+    const temSep = (r) => r.pct_separado !== null && r.pct_separado !== undefined && r.pct_separado !== '';
+    const barW = (r) => Math.max(1.5, x(r.fimM) - x(r.ini) - 1);
+    const strokeOf = (r) => (conflito.has(r.chave) ? 'var(--color-bad)' : null);
+    const g = svg.append('g').selectAll('g').data(rows).join('g').attr('class', 'pc-bar-g');
+    g.append('rect').attr('x', (r) => x(r.ini) + 0.5).attr('y', (r) => y(r.docaN) + 4).attr('width', barW).attr('height', rowH - 8).attr('rx', 4)
+      .style('fill', colorOf).style('fill-opacity', (r) => (temSep(r) ? 0.3 : 1))
+      .style('stroke', strokeOf).style('stroke-width', (r) => (conflito.has(r.chave) ? 2.5 : null))
+      .on('pointerenter pointermove', function (ev, r) { if (PC.arrastando) return; show(ev, r); d3.select(this).style('stroke', 'var(--color-fg)').style('stroke-width', 1.5); })
+      .on('pointerleave', function (ev, r) { tip.hidden = true; d3.select(this).style('stroke', strokeOf(r)).style('stroke-width', conflito.has(r.chave) ? 2.5 : null); });
+    g.filter(temSep).append('rect').attr('x', (r) => x(r.ini) + 0.5).attr('y', (r) => y(r.docaN) + 4)
+      .attr('width', (r) => barW(r) * Math.max(0, Math.min(100, +r.pct_separado)) / 100).attr('height', rowH - 8).attr('rx', 4)
+      .style('fill', colorOf).style('pointer-events', 'none');
+    g.append('text').attr('class', 'pc-barlabel').attr('x', (r) => x(r.ini) + 5).attr('y', (r) => y(r.docaN) + rowH / 2 + 4)
+      .text((r) => r.rota + (temSep(r) ? ' ' + pctTxt(r.pct_separado) : ''))
+      .each(function (r) {
+        const w = x(r.fimM) - x(r.ini) - 8;
+        if (this.getComputedTextLength() <= w) return;
+        this.textContent = r.rota; if (this.getComputedTextLength() <= w) return;
+        this.textContent = '';
+      });
+    // arrastar
+    const guia = svg.append('text').attr('class', 'pc-guia').attr('text-anchor', 'middle').attr('visibility', 'hidden');
+    g.on('pointerdown', function (ev, r) {
+      if (ev.button !== undefined && ev.button !== 0) return;
+      ev.preventDefault();
+      const node = this;
+      const escala = W / svg.node().getBoundingClientRect().width;
+      const x0 = ev.clientX, y0 = ev.clientY;
+      let moveu = false, novoIni = r.ini, novaDoca = r.docaN;
+      try { node.setPointerCapture(ev.pointerId); } catch (e) {}
+      const mover = (e) => {
+        const dx = (e.clientX - x0) * escala, dy = (e.clientY - y0) * escala;
+        if (!moveu && Math.abs(dx) + Math.abs(dy) < 5) return;
+        moveu = true; PC.arrastando = true; tip.hidden = true;
+        novoIni = Math.round(x.invert(x(r.ini) + dx) / 5) * 5;
+        novaDoca = Math.max(1, Math.min(PC.N2, r.docaN + Math.round(dy / rowH)));
+        d3.select(node).classed('pc-dragging', true).style('opacity', 0.8).attr('transform', `translate(${x(novoIni) - x(r.ini)},${y(novaDoca) - y(r.docaN)})`);
+        guia.attr('visibility', 'visible').attr('x', x(novoIni) + barW(r) / 2).attr('y', y(novaDoca) + 1)
+          .text('Doca ' + novaDoca + ' · ' + PC.hhmm(novoIni) + ' → ' + PC.hhmm(novoIni + r.tempo_min));
+      };
+      const soltar = () => {
+        node.removeEventListener('pointermove', mover); node.removeEventListener('pointerup', soltar); node.removeEventListener('pointercancel', soltar);
+        PC.arrastando = false; guia.attr('visibility', 'hidden');
+        d3.select(node).classed('pc-dragging', false).style('opacity', null);
+        if (!moveu || (novoIni === r.ini && novaDoca === r.docaN)) { d3.select(node).attr('transform', null); return; }
+        PC.salvarAjuste(r, novoIni, novaDoca);
+      };
+      node.addEventListener('pointermove', mover); node.addEventListener('pointerup', soltar); node.addEventListener('pointercancel', soltar);
+    });
+  });
+
+  dash.draw('ocupacao', (el) => {
+    const src = dash.data('ocupacao');
+    el.replaceChildren();
+    if (src.status !== 'ok' || !Array.isArray(src.data) || !src.data.length) return;
+    const data = src.data;
+    const passo = data.length > 1 ? data[1].minuto - data[0].minuto : 10;
+    const d0 = data[0].minuto, d1 = data[data.length - 1].minuto + passo;
+    const W = Math.max(320, el.clientWidth), H = 190, top = 10, left = 30, right = 12, bottom = 26;
+    const x = d3.scaleLinear().domain([d0, d1]).range([left, W - right]);
+    const yS = d3.scaleLinear().domain([0, 8]).range([H - bottom, top]);
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
+      .attr('aria-label', 'Barras com o número de docas em uso em cada intervalo, comparadas com as docas disponíveis.');
+    svg.append('g').selectAll('line').data([0, 2, 4, 6, 8]).join('line').attr('x1', left).attr('x2', W - right).attr('y1', yS).attr('y2', yS).style('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data([0, 2, 4, 6, 8]).join('text').attr('x', left - 6).attr('y', (d) => yS(d) + 4).attr('text-anchor', 'end').text((d) => d);
+    const horas = (d1 - d0) / 60; const st = horas <= 14 ? 60 : horas <= 30 ? 120 : horas <= 72 ? 360 : 720;
+    const tk = d3.range(Math.ceil(d0 / st) * st, d1 + 1, st);
+    svg.append('g').selectAll('text').data(tk).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle')
+      .text((d) => { const h = PC.hhmm(d); return h === '00:00' ? PC.lab(d).slice(0, 5) : h.slice(0, 2) + 'h'; });
+    const bw = Math.max(1, x(d0 + passo) - x(d0) - 1);
+    const tip = document.createElement('div'); tip.className = 'pc-tip'; tip.hidden = true; el.append(tip);
+    svg.append('g').selectAll('rect').data(data).join('rect').attr('x', (d) => x(d.minuto) + 0.5).attr('width', bw)
+      .attr('y', (d) => yS(d.em_uso)).attr('height', (d) => yS(0) - yS(d.em_uso))
+      .style('fill', (d) => (d.em_uso > d.disponiveis ? 'var(--color-bad)' : dash.colors[0]))
+      .on('pointerenter pointermove', function (ev, d) {
+        tip.replaceChildren();
+        const b = document.createElement('b'); b.textContent = PC.lab(d.minuto); tip.append(b);
+        const l = document.createElement('div'); l.textContent = d.em_uso + ' de ' + d.disponiveis + ' docas em uso'; tip.append(l);
+        tip.hidden = false;
+        const bx = el.getBoundingClientRect();
+        let lx = ev.clientX - bx.left + 12; if (lx + tip.offsetWidth > bx.width) lx = ev.clientX - bx.left - tip.offsetWidth - 12;
+        tip.style.left = Math.max(0, lx) + 'px'; tip.style.top = (ev.clientY - bx.top - 40) + 'px';
+      })
+      .on('pointerleave', () => { tip.hidden = true; });
+    const line = d3.line().curve(d3.curveStepAfter).x((d) => x(d.minuto)).y((d) => yS(d.disponiveis));
+    svg.append('path').datum(data.concat([{ minuto: d1, disponiveis: data[data.length - 1].disponiveis }])).attr('d', line)
+      .style('fill', 'none').style('stroke', 'var(--cds-chart-reference)').style('stroke-width', 2).style('stroke-dasharray', '5 3');
+  });
+
+  dash.draw('tabela', (tb) => {
+    const src = dash.data('programacao_aj');
+    tb.replaceChildren();
+    if (src.status !== 'ok' || !Array.isArray(src.data)) return;
+    let rows = PC.prep(src.data);
+    if (PC.filtroDoca) rows = rows.filter((r) => r.doca === PC.filtroDoca);
+    for (const r of rows) {
+      const tr = document.createElement('tr'); tr.dataset.key = r.chave;
+      const td = (txt, cls) => { const c = document.createElement('td'); if (cls) c.className = cls; c.textContent = txt; tr.append(c); return c; };
+      td(r.ordem, 'pc-num'); td(r.rota); td(r.doca); td(PC.lab(r.plan)); td(PC.lab(r.ini)); td(PC.lab(r.fimM));
+      td(PC.nf.format(r.volumes), 'pc-num'); td(r.tempo_min + ' min', 'pc-num');
+      td(r.antecipacao_min > 0 ? '+' + r.antecipacao_min + ' min' : r.antecipacao_min < 0 ? '−' + (-r.antecipacao_min) + ' min' : 'no horário', 'pc-num ' + (r.antecipacao_min < 0 ? 'pc-neg' : r.antecipacao_min > 0 ? 'pc-pos' : ''));
+      td(r.pct_separado !== null && r.pct_separado !== undefined && r.pct_separado !== '' ? String(r.pct_separado).replace('.', ',') + '%' : '—', 'pc-num');
+      td(r.transportadora || '—'); td(r.motorista || '—');
+      const o = td('');
+      const tag = (t, cls) => { const s = document.createElement('span'); s.className = 'pc-tag' + (cls ? ' ' + cls : ''); s.textContent = t; o.append(s); };
+      if (r.ajustado === true || r.ajustado === 'true') tag('ajustado à mão');
+      if (r.passa_corte === true || r.passa_corte === 'true') tag('passa do corte', 'pc-tag-bad');
+      if (r.obs) { const s = document.createElement('span'); s.className = 'pc-aj-dica'; s.textContent = r.obs; o.append(s); }
+      tb.append(tr);
+    }
+  });
+
+  dash.draw('agenda', (tb) => {
+    const src = dash.data('agendamento');
+    tb.replaceChildren();
+    if (src.status !== 'ok' || !Array.isArray(src.data)) return;
+    for (const r of src.data) {
+      const tr = document.createElement('tr'); tr.dataset.key = r.chave;
+      const td = (txt, cls) => { const c = document.createElement('td'); if (cls) c.className = cls; c.textContent = txt; tr.append(c); return c; };
+      td(r.seq, 'pc-num'); td(r.chegada, 'pc-big'); td(r.rota, 'pc-big'); td(r.doca); td(r.modal); td(r.transportadora);
+      td(r.motorista || '______________', r.motorista ? '' : 'pc-blank');
+      td(r.placa || '__________', r.placa ? '' : 'pc-blank');
+      td(r.ajudante || '______________', r.ajudante ? '' : 'pc-blank');
+      td(r.inicio); td(PC.nf.format(r.volumes), 'pc-num'); td('', 'pc-blank');
+      tb.append(tr);
+    }
+  });
+
+  // ---------- ajustes manuais ----------
+  PC.salvarAjuste = async (r, ini, docaN) => {
+    PC.pend[r.chave] = { ini, docaN };
+    dash.draw('gantt');
+    let ok = true;
+    try {
+      const db = await claude.use('db');
+      if (!db) throw new Error('db');
+      await db.doc('data/ajustes/rotas/' + r.chave).set({ rota: r.rota, data: r.data, inicio: PC.iso(ini) + ':00', doca: 'Doca ' + docaN, em: new Date().toISOString() });
+    } catch (e) { ok = false; delete PC.pend[r.chave]; dash.draw('gantt'); }
+    document.querySelectorAll('#pc-aj-erro').forEach((p) => { p.hidden = ok; });
+  };
+  document.querySelectorAll('#pc-aj-reset').forEach((b) => b.addEventListener('click', async () => {
+    const a = dash.data('ajustes');
+    if (a.status !== 'ok' || !Array.isArray(a.data)) return;
+    let ok = true;
+    try {
+      const db = await claude.use('db');
+      if (!db) throw new Error('db');
+      for (const row of a.data) await db.doc('data/ajustes/rotas/' + row.id).delete();
+    } catch (e) { ok = false; }
+    PC.pend = {};
+    document.querySelectorAll('#pc-aj-erro').forEach((p) => { p.hidden = ok; });
+    dash.draw('gantt');
+  }));
+
+  // ---------- período ----------
+  const campos = () => ({ de: document.getElementById('pc-de'), ate: document.getElementById('pc-ate') });
+  function mostrarPeriodo() {
+    const p = dash.params(); const c = campos();
+    if (c.de && document.activeElement !== c.de && p.de) c.de.value = String(p.de).slice(0, 16);
+    if (c.ate && document.activeElement !== c.ate && p.ate) c.ate.value = String(p.ate).slice(0, 16);
+  }
+  PC.mostrarPeriodo = mostrarPeriodo;
+  mostrarPeriodo();
+  const aplicar = (de, ate) => { if (de && ate && ate > de) dash.setParams({ de, ate }); };
+  document.querySelectorAll('#pc-aplicar').forEach((b) => b.addEventListener('click', () => {
+    const c = campos(); if (c.de && c.ate && c.de.value && c.ate.value && c.de.validity.valid && c.ate.validity.valid) aplicar(c.de.value, c.ate.value);
+  }));
+  const deslocar = (dias) => { const p = dash.params(); if (!p.de || !p.ate) return; aplicar(PC.iso(PC.abs(p.de) + dias * 1440), PC.iso(PC.abs(p.ate) + dias * 1440)); };
+  document.querySelectorAll('#pc-noite-ant').forEach((b) => b.addEventListener('click', () => deslocar(-1)));
+  document.querySelectorAll('#pc-noite-prox').forEach((b) => b.addEventListener('click', () => deslocar(1)));
+  document.querySelectorAll('#pc-dia-todo').forEach((b) => b.addEventListener('click', () => {
+    const p = dash.params(); if (!p.de) return;
+    const dia = Math.floor(PC.abs(p.de) / 1440) * 1440; aplicar(PC.iso(dia), PC.iso(dia + 1440 + 6 * 60));
+  }));
+
+  // ---------- abas e impressão ----------
+  function pcTab(id) {
+    PC.tab = id;
+    document.querySelectorAll('.pc-tab').forEach((s) => { s.hidden = s.id !== id; });
+    document.querySelectorAll('.pc-tabs button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === id)));
+    dash.setLink(id);
+  }
+  PC.tab = 'plano';
+  document.querySelectorAll('.pc-tabs button').forEach((b) => b.addEventListener('click', () => pcTab(b.dataset.tab)));
+  if (location.hash === '#agendamento') pcTab('agendamento');
+  window.addEventListener('beforeprint', () => {
+    const wrap = document.getElementById('portal');
+    if (PC.tab === 'agendamento') { if (wrap) wrap.classList.add('pc-printing-agenda'); return; }
+    document.querySelectorAll('#agendamento').forEach((s) => { s.hidden = false; s.classList.add('pc-print-page'); });
+  });
+  window.addEventListener('afterprint', () => {
+    const wrap = document.getElementById('portal');
+    if (wrap) wrap.classList.remove('pc-printing-agenda');
+    document.querySelectorAll('#agendamento').forEach((s) => { s.classList.remove('pc-print-page'); s.hidden = PC.tab !== 'agendamento'; });
+  });
+  document.querySelectorAll('#pc-filtro-doca').forEach((sel) => sel.addEventListener('change', () => { PC.filtroDoca = sel.value; dash.draw('tabela'); }));
+})();
+</script>
+
+<script>
+(function () {
+  // ---------- leitura de planilhas ----------
+  function colIdx(letters) { let n = 0; for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; }
+  async function lerXlsx(buf) {
+    const dv = new DataView(buf), u8 = new Uint8Array(buf), dec = new TextDecoder();
+    let e = -1;
+    for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65558); i--) { if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; } }
+    if (e < 0) throw new Error('zip');
+    const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true);
+    const files = {};
+    for (let k = 0; k < n; k++) {
+      const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+      const nlen = dv.getUint16(p + 28, true), xlen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+      files[dec.decode(u8.subarray(p + 46, p + 46 + nlen))] = { method, csize, off };
+      p += 46 + nlen + xlen + clen;
+    }
+    async function get(name) {
+      const f = files[name]; if (!f) return null;
+      const start = f.off + 30 + dv.getUint16(f.off + 26, true) + dv.getUint16(f.off + 28, true);
+      const data = u8.subarray(start, start + f.csize);
+      if (f.method === 0) return dec.decode(data);
+      const out = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+      return dec.decode(out);
+    }
+    const strings = [];
+    const ss = await get('xl/sharedStrings.xml');
+    if (ss) {
+      const doc = new DOMParser().parseFromString(ss, 'application/xml');
+      for (const si of Array.from(doc.getElementsByTagName('si'))) strings.push(Array.from(si.getElementsByTagName('t')).map((t) => t.textContent).join(''));
+    }
+    const sheet = files['xl/worksheets/sheet1.xml'] ? 'xl/worksheets/sheet1.xml' : Object.keys(files).filter((f) => /^xl\/worksheets\/sheet\d+\.xml$/.test(f)).sort()[0];
+    if (!sheet) throw new Error('sheet');
+    const doc = new DOMParser().parseFromString(await get(sheet), 'application/xml');
+    const rows = [];
+    for (const r of Array.from(doc.getElementsByTagName('row'))) {
+      const arr = [];
+      for (const c of Array.from(r.getElementsByTagName('c'))) {
+        const ref = (c.getAttribute('r') || '').replace(/[0-9]/g, '');
+        const t = c.getAttribute('t'); const v = c.getElementsByTagName('v')[0];
+        let val = null;
+        if (t === 's' && v) val = strings[Number(v.textContent)];
+        else if (t === 'inlineStr') val = Array.from(c.getElementsByTagName('t')).map((x) => x.textContent).join('');
+        else if (v) val = v.textContent;
+        arr[ref ? colIdx(ref) : arr.length] = val;
+      }
+      rows.push(arr);
+    }
+    return rows;
+  }
+  function lerCsv(text) {
+    const lines = text.replace(/\r/g, '').split('\n').filter((l) => l.trim());
+    const sep = (lines[0] || '').split(';').length > (lines[0] || '').split(',').length ? ';' : ',';
+    return lines.map((l) => l.split(sep).map((x) => x.replace(/^"|"$/g, '').trim()));
+  }
+  async function ler(f) { return /\.csv$/i.test(f.name) ? lerCsv(await f.text()) : await lerXlsx(await f.arrayBuffer()); }
+  const norm = (s) => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+  const num = (v) => { if (v == null || v === '') return 0; let s = String(v).trim(); if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); const n = Number(s); return isFinite(n) ? n : 0; };
+  const pad = (n) => String(n).padStart(2, '0');
+  const ano = new Date().getFullYear();
+  function data(v) {
+    if (v == null || v === '') return null;
+    const s = String(v).trim();
+    if (/^\d+(\.\d+)?$/.test(s)) { const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(Number(s)) * 86400000); return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()); }
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return m[1] + '-' + m[2] + '-' + m[3];
+    m = s.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+    if (m) { const d = +m[1], mo = +m[2]; if (mo < 1 || mo > 12 || d < 1 || d > 31) return null; let y = m[3] ? +m[3] : ano; if (y < 100) y += 2000; return y + '-' + pad(mo) + '-' + pad(d); }
+    return null;
+  }
+  function hora(v) {
+    if (v == null || v === '') return null;
+    const s = String(v).trim();
+    if (/^\d*\.?\d+$/.test(s)) { const n = Number(s); const frac = n - Math.floor(n); const mm = Math.round(frac * 1440) % 1440; return pad(Math.floor(mm / 60)) + ':' + pad(mm % 60); }
+    const m = s.match(/(\d{1,2}):(\d{2})/); if (m) return pad(+m[1]) + ':' + m[2];
+    return null;
+  }
+  const achar = (head, ...testes) => { for (const t of testes) { const i = head.findIndex(t); if (i >= 0) return i; } return -1; };
+  function mostrar(prefixo, qual) {
+    for (const m of ['lendo', 'ok', 'formato', 'salvar']) document.querySelectorAll('#pc-' + prefixo + '-' + m).forEach((p) => { p.hidden = m !== qual; });
+  }
+
+  // ---------- importar programação ----------
+  function extrairProg(rows) {
+    const h = rows.findIndex((r) => (r || []).some((c) => norm(c) === 'rota'));
+    if (h < 0) return null;
+    const head = rows[h].map(norm);
+    const iR = achar(head, (c) => c === 'rota');
+    const iD = achar(head, (c) => c.startsWith('data carreg'), (c) => c.startsWith('data'));
+    const iH = achar(head, (c) => c.startsWith('hora carreg'), (c) => c.startsWith('hora'));
+    const iT = achar(head, (c) => c.startsWith('transportadora'));
+    const iM = achar(head, (c) => c === 'modal');
+    const iMo = achar(head, (c) => c === 'motorista');
+    const iP = achar(head, (c) => c === 'placa');
+    const iA = achar(head, (c) => c.startsWith('ajudante'));
+    const iV = achar(head, (c) => c === 'volume' || c === 'peso');
+    if (iR < 0 || iD < 0 || iH < 0) return null;
+    const corpo = rows.slice(h + 1).filter((r) => r && r[iR] != null && String(r[iR]).trim() !== '');
+    const cont = {};
+    for (const r of corpo) { const d = data(r[iD]); if (d) cont[d] = (cont[d] || 0) + 1; }
+    const moda = Object.keys(cont).sort((a, b) => cont[b] - cont[a])[0];
+    const por = {};
+    for (const r of corpo) {
+      const rota = String(r[iR]).trim(); const d = data(r[iD]) || moda; const hh = hora(r[iH]);
+      if (!d || !hh) continue;
+      const k = d + '|' + rota;
+      const x = por[k] || (por[k] = { rota, data: d, hora: hh, transportadora: '', modal: '', motorista: '', placa: '', ajudante: '', peso: 0, lojas: 0, antecipar: false });
+      const txt = (i) => (i >= 0 && r[i] != null ? String(r[i]).trim() : '');
+      x.transportadora = x.transportadora || txt(iT); x.modal = x.modal || txt(iM); x.motorista = x.motorista || txt(iMo);
+      x.placa = x.placa || txt(iP); x.ajudante = x.ajudante || txt(iA);
+      x.peso += iV >= 0 ? num(r[iV]) : 0; x.lojas += 1;
+    }
+    const lista = Object.values(por);
+    return lista.length ? lista : null;
+  }
+  document.querySelectorAll('#pc-arq-prog').forEach((inp) => inp.addEventListener('change', async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    mostrar('prog', 'lendo');
+    let lista = null;
+    try { lista = extrairProg(await ler(f)); } catch (e) { lista = null; }
+    if (!lista) { mostrar('prog', 'formato'); inp.value = ''; return; }
+    // mantém o que só existe no portal (ajudante, antecipação, motorista/placa) quando o arquivo não traz
+    const antigos = {};
+    const atual = dash.data('programacao_dias');
+    if (atual.status === 'ok' && Array.isArray(atual.data)) for (const d of atual.data) { let rs = []; try { rs = JSON.parse(d.rotas); } catch (e) {} for (const r of rs) antigos[r.data + '|' + r.rota] = r; }
+    const porDia = {};
+    for (const r of lista) {
+      const a = antigos[r.data + '|' + r.rota];
+      if (a) { r.ajudante = r.ajudante || a.ajudante || ''; r.motorista = r.motorista || a.motorista || ''; r.placa = r.placa || a.placa || ''; r.antecipar = !!a.antecipar; }
+      (porDia[r.data] = porDia[r.data] || []).push(r);
+    }
+    try {
+      const db = await claude.use('db');
+      if (!db) throw new Error('db');
+      const at = new Date().toISOString();
+      for (const d of Object.keys(porDia)) await db.doc('data/programacao/dias/' + d).set({ data: d, arquivo: f.name, at, rotas: JSON.stringify(porDia[d]) });
+      mostrar('prog', 'ok');
+    } catch (e) { mostrar('prog', 'salvar'); }
+    inp.value = '';
+  }));
+
+  // ---------- importar separação ----------
+  function extrairSep(rows) {
+    const h = rows.findIndex((r) => (r || []).some((c) => norm(c).startsWith('rota')) && (r || []).some((c) => norm(c).startsWith('carreg')));
+    if (h < 0) return null;
+    const head = rows[h].map(norm);
+    const iR = achar(head, (c) => c.startsWith('rota'));
+    const iC = achar(head, (c) => c.startsWith('carreg'));
+    const iH = achar(head, (c) => c.startsWith('horario'), (c) => c.startsWith('hora'));
+    const iP = achar(head, (c) => c === 'pen', (c) => c === 'pendente');
+    const iS = achar(head, (c) => c === 'sep', (c) => c.includes('conferencia'));
+    const iO = achar(head, (c) => c === 'ok');
+    const iSt = achar(head, (c) => c === 'status');
+    if (iR < 0 || iC < 0 || iH < 0 || iP < 0 || iS < 0 || iO < 0) return null;
+    const out = [];
+    for (const r of rows.slice(h + 1)) {
+      if (!r || r[iR] == null || String(r[iR]).trim() === '') continue;
+      const d = data(r[iC]); if (!d) continue;
+      out.push({ rota: String(r[iR]).trim(), data: d, hora: hora(r[iH]), pendente: num(r[iP]), pend_conf: num(r[iS]), ok: num(r[iO]), status: iSt >= 0 && r[iSt] != null ? String(r[iSt]).trim() : '' });
+    }
+    return out.length ? out : null;
+  }
+  document.querySelectorAll('#pc-arq-sep').forEach((inp) => inp.addEventListener('change', async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    mostrar('sep', 'lendo');
+    let linhas = null;
+    try { linhas = extrairSep(await ler(f)); } catch (e) { linhas = null; }
+    if (!linhas) { mostrar('sep', 'formato'); inp.value = ''; return; }
+    try {
+      const db = await claude.use('db');
+      if (!db) throw new Error('db');
+      const at = new Date().toISOString();
+      await db.doc('data/separacao/uploads/' + at.replace(/[:.]/g, '-')).set({ at, arquivo: f.name, linhas: JSON.stringify(linhas) });
+      mostrar('sep', 'ok');
+    } catch (e) { mostrar('sep', 'salvar'); }
+    inp.value = '';
+  }));
+
+  const val = (id) => { const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+  const aviso = (pre, ok) => { document.querySelectorAll('#pc-' + pre + '-ok').forEach((p) => { p.hidden = !ok; }); document.querySelectorAll('#pc-' + pre + '-erro').forEach((p) => { p.hidden = ok; }); };
+  async function gravar(path, dados) { const db = await claude.use('db'); if (!db) throw new Error('db'); await db.doc(path).set(dados); }
+  const idDe = (rota, d) => (rota + '_' + d).replace(/[^A-Za-z0-9_-]/g, '-');
+  document.querySelectorAll('#man-sep').forEach((f) => f.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const rota = val('ms-rota').toUpperCase(), d = val('ms-data'), h = val('ms-hora');
+    const vol = Math.round(Number(val('ms-vol'))), sep = Math.round(Number(val('ms-sep') || 0));
+    if (!rota || !d || !h || !(vol > 0) || !(sep >= 0) || sep > vol) { aviso('ms', false); return; }
+    try { await gravar('data/separacao/manual/' + idDe(rota, d), { rota, data: d, hora: h, pendente: vol - sep, ok: sep, em: new Date().toISOString() }); aviso('ms', true); f.reset(); } catch (e) { aviso('ms', false); }
+  }));
+  document.querySelectorAll('#man-prog').forEach((f) => f.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const rota = val('mp-rota').toUpperCase(), d = val('mp-data'), h = val('mp-hora');
+    if (!rota || !d || !h) { aviso('mp', false); return; }
+    const ant = document.getElementById('mp-ant');
+    try {
+      await gravar('data/programacao/manual/' + idDe(rota, d), { rota, data: d, hora: h, transportadora: val('mp-transp').toUpperCase(), modal: val('mp-modal').toUpperCase(), motorista: val('mp-mot').toUpperCase(), placa: val('mp-placa').toUpperCase(), ajudante: val('mp-ajud').toUpperCase(), antecipar: !!(ant && ant.checked), em: new Date().toISOString() });
+      aviso('mp', true); f.reset();
+    } catch (e) { aviso('mp', false); }
+  }));
+  document.addEventListener('click', async (ev) => {
+    const b = ev.target && ev.target.closest ? ev.target.closest('[data-remover]') : null;
+    if (!b) return;
+    ev.preventDefault();
+    try { const db = await claude.use('db'); if (!db) throw new Error('db'); await db.doc(b.dataset.remover).delete(); } catch (e) {}
+  });
+})();
+</script>
+
+</div>
+</body>
+</html>
