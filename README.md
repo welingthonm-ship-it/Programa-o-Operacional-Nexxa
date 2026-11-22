@@ -24,7 +24,7 @@ Na área **Dados** do portal:
 
 ## Como publicar
 1. **Supabase**: crie um projeto, abra o SQL Editor e rode `supabase/schema.sql` e depois `supabase/seed.sql`.
-2. **Vercel**: importe este repositório (Framework: *Other*, sem comando de build) e crie as variáveis de ambiente:
+2. **Vercel**: importe este repositório (Framework: *Other*, sem comando de build). O portal já vem apontado para o projeto Supabase "Programação Operacional" (ailazwtsqtqotaovldua). Para usar outro projeto, crie as variáveis de ambiente:
    - `SUPABASE_URL` — Project URL (Settings → API)
    - `SUPABASE_ANON_KEY` — chave `anon` pública (Settings → API)
 3. Faça o deploy. A cada push na branch `main` a Vercel publica de novo.
