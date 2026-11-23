@@ -164,20 +164,20 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
       <div id="imp-prog">
         <h3 class="pc-h3">Programação (rotas, carros e motoristas)</h3>
         <p class="pc-sub" data-read lang="pt-BR">Arquivo como o PROGRAMAÇÃO_23: Rota, Data carregamento, Hora Carregamento, Transportadora, Modal, Motorista, Placa, Volume (Ajudante opcional), ou a planilha Programação Food Service (aba Programação). Atualiza as rotas que vierem no arquivo; as outras rotas do mesmo dia continuam.</p>
-        <div class="pc-upload"><input type="file" id="pc-arq-prog" accept=".xlsx,.csv" aria-label="Arquivo de programação"></div>
+        <div class="pc-upload"><input type="file" id="pc-arq-prog" accept=".xlsx,.xlsm,.csv" aria-label="Arquivo de programação"></div>
         <p class="pc-msg pc-msg-wait" id="pc-prog-lendo" hidden>Lendo e salvando a programação…</p>
         <p class="pc-msg pc-msg-ok" id="pc-prog-ok" hidden>Programação salva.</p>
-        <p class="pc-msg pc-msg-bad" id="pc-prog-formato" hidden>Não consegui ler o arquivo. Ele precisa ter as colunas Rota, Data carregamento e Hora Carregamento.</p>
+        <p class="pc-msg pc-msg-bad" id="pc-prog-formato" hidden>Não consegui ler o arquivo. Ele precisa ter as colunas Rota, Data carregamento e Hora Carregamento. Se for .xls antigo, salve como .xlsx no Excel e envie de novo.</p>
         <p class="pc-msg pc-msg-bad" id="pc-prog-salvar" hidden>Não foi salvo. Só quem pode editar o portal consegue importar.</p>
         <p class="pc-msg" data-read lang="pt-BR">Dias carregados: <b data-draw="prog-dias" data-source="programacao_dias">—</b></p>
       </div>
       <div id="imp-sep">
         <h3 class="pc-h3">Separação (volumes por rota)</h3>
         <p class="pc-sub" data-read lang="pt-BR">Arquivo como o de Separação: Rota, Carregam. (ex.: "Domingo 22/11"), Horário, Pen, Sep, OK e Status, ou o Controle de Separação (uma linha por pedido e setor, com Status e Total). Vale sempre o último enviado.</p>
-        <div class="pc-upload"><input type="file" id="pc-arq-sep" accept=".xlsx,.csv" aria-label="Arquivo de separação"></div>
+        <div class="pc-upload"><input type="file" id="pc-arq-sep" accept=".xlsx,.xlsm,.csv" aria-label="Arquivo de separação"></div>
         <p class="pc-msg pc-msg-wait" id="pc-sep-lendo" hidden>Lendo e salvando a separação…</p>
         <p class="pc-msg pc-msg-ok" id="pc-sep-ok" hidden>Separação salva.</p>
-        <p class="pc-msg pc-msg-bad" id="pc-sep-formato" hidden>Não consegui ler o arquivo. Ele precisa ter as colunas Rota, Carregamento, Horário e Pen/Sep/OK, ou Status e Total.</p>
+        <p class="pc-msg pc-msg-bad" id="pc-sep-formato" hidden>Não consegui ler o arquivo. Ele precisa ter as colunas Rota, Carregamento, Horário e Pen/Sep/OK, ou Status e Total. Se for .xls antigo, salve como .xlsx no Excel e envie de novo.</p>
         <p class="pc-msg pc-msg-bad" id="pc-sep-salvar" hidden>Não foi salvo. Só quem pode editar o portal consegue importar.</p>
         <p class="pc-msg" data-read lang="pt-BR">Última separação: <b data-draw="sep-hora" data-source="separacao_resumo" data-field="atualizado" data-row="0">—</b> · <b data-draw="sep-pct" data-source="separacao_resumo" data-field="pct_volumes" data-row="0">—</b> dos volumes do período separados</p>
       </div>
