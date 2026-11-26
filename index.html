@@ -111,6 +111,9 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
 .nx .pc-tile{border-top:3px solid var(--nx-g2)}
 .nx .pc-tile-label{text-transform:uppercase;letter-spacing:.04em;font-weight:500}
 .nx .pc-tile-value{color:var(--nx-g1)}
+.pc-tile-note{font-size:var(--cds-font-size-caption);color:var(--color-fg-muted)}
+.nx .pc-tile.pc-tile-sep{border-top-color:var(--nx-g3)}
+.nx .pc-tile.pc-tile-falta{border-top-color:var(--color-warn)}
 .nx .pc-h2,.nx .pc-h3{color:var(--nx-g1)}
 .nx .pc-tabs{background:#fff;border:1px solid var(--color-border-line);border-radius:var(--cds-radius);padding:6px 6px 0}
 .nx .pc-tabs button{border-bottom:3px solid transparent;border-radius:6px 6px 0 0}
@@ -212,6 +215,16 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
     <div class="pc-tile" id="tile-volumes">
       <span class="pc-tile-label">Volumes a carregar</span>
       <span class="pc-tile-value" data-draw="kpi-volumes" data-source="kpis" data-field="volumes" data-row="0">—</span>
+    </div>
+    <div class="pc-tile pc-tile-sep" id="tile-separados">
+      <span class="pc-tile-label">Volumes já separados</span>
+      <span class="pc-tile-value" data-draw="kpi-separados" data-source="kpis" data-field="separados" data-row="0">—</span>
+      <span class="pc-tile-note" data-draw="kpi-separados-nota">—</span>
+    </div>
+    <div class="pc-tile pc-tile-falta" id="tile-faltam">
+      <span class="pc-tile-label">Faltam separar</span>
+      <span class="pc-tile-value" data-draw="kpi-faltam" data-source="kpis" data-field="faltam" data-row="0">—</span>
+      <span class="pc-tile-note" data-draw="kpi-faltam-nota">—</span>
     </div>
     <div class="pc-tile" id="tile-termino">
       <span class="pc-tile-label">Última carga termina</span>
@@ -553,7 +566,9 @@ dash.calc('kpis', {
       volumes: programacao_aj.reduce((a, r) => a + Number(r.volumes), 0),
       termino: lastFim ? lastFim.slice(8, 10) + '/' + lastFim.slice(5, 7) + ' ' + lastFim.slice(11, 16) : '',
       atrasadas: programacao_aj.filter((r) => Number(r.antecipacao_min) < 0).length,
-      passam_corte: programacao_aj.filter((r) => r.passa_corte === true).length
+      passam_corte: programacao_aj.filter((r) => r.passa_corte === true).length,
+      separados: programacao_aj.reduce((a, r) => a + Math.min(Number(r.volumes) || 0, Number(r.separados) || 0), 0),
+      faltam: programacao_aj.reduce((a, r) => a + Math.max(0, (Number(r.volumes) || 0) - (Number(r.separados) || 0)), 0)
     }];
   }
 });
@@ -647,6 +662,21 @@ function pcKpi(name, field, fmt) {
 const pcN = (v) => PC.nf.format(v || 0), pcT = (v) => v || '—';
 pcKpi('kpi-cargas', 'cargas', pcN); pcKpi('kpi-volumes', 'volumes', pcN); pcKpi('kpi-termino', 'termino', pcT);
 pcKpi('kpi-atraso', 'atrasadas', pcN); pcKpi('kpi-corte', 'passam_corte', pcN);
+pcKpi('kpi-separados', 'separados', pcN); pcKpi('kpi-faltam', 'faltam', pcN);
+dash.draw('kpi-separados-nota', (el) => {
+  const k = dash.data('kpis'), s = dash.data('separacao_resumo');
+  if (k.status !== 'ok' || !Array.isArray(k.data) || !k.data.length || !k.data[0].volumes) { el.textContent = '—'; return; }
+  const p = Math.round((k.data[0].separados / k.data[0].volumes) * 1000) / 10;
+  const quando = s.status === 'ok' && Array.isArray(s.data) && s.data.length ? ' · arquivo de ' + s.data[0].atualizado : '';
+  el.textContent = String(p).replace('.', ',') + '% dos volumes do período' + quando;
+});
+dash.draw('kpi-faltam-nota', (el) => {
+  const src = dash.data('programacao_aj');
+  if (src.status !== 'ok' || !Array.isArray(src.data)) { el.textContent = '—'; return; }
+  const now = PC.agora();
+  const atras = src.data.filter((r) => PC.abs(r.inicio) <= now).reduce((a, r) => a + Math.max(0, (Number(r.volumes) || 0) - (Number(r.separados) || 0)), 0);
+  el.textContent = atras ? PC.nf.format(atras) + ' de cargas que já deveriam ter começado' : 'nada atrasado até agora';
+});
 pcKpi('lede-cargas', 'cargas', pcN); pcKpi('lede-vol', 'volumes', pcN); pcKpi('lede-termino', 'termino', pcT);
 dash.draw('lede-de', (el) => { const p = dash.params(); if (PC.mostrarPeriodo) PC.mostrarPeriodo(); el.textContent = p.de ? PC.lab(PC.abs(p.de)) : '—'; });
 dash.draw('lede-ate', (el) => { const p = dash.params(); el.textContent = p.ate ? PC.lab(PC.abs(p.ate)) : '—'; });
@@ -1114,7 +1144,7 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     document.querySelectorAll('#agendamento').forEach((s) => { s.classList.remove('pc-print-page'); s.hidden = PC.tab !== 'agendamento'; });
   });
   document.querySelectorAll('#pc-filtro-doca').forEach((sel) => sel.addEventListener('change', () => { PC.filtroDoca = sel.value; dash.draw('tabela'); }));
-  setInterval(() => { dash.draw('ticker'); if (!PC.arrastando) { dash.draw('gantt'); dash.draw('ocupacao'); dash.draw('sep-hora'); dash.draw('sep-hora-tabela'); } }, 60000);
+  setInterval(() => { dash.draw('ticker'); if (!PC.arrastando) { dash.draw('gantt'); dash.draw('ocupacao'); dash.draw('sep-hora'); dash.draw('sep-hora-tabela'); dash.draw('kpi-faltam-nota'); } }, 60000);
 })();
 </script>
 
