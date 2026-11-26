@@ -138,6 +138,7 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
 @keyframes pcPisca{0%,100%{opacity:1}50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.pc-tk-track,.pc-tk-dot{animation:none}.pc-tk-track{white-space:normal;flex-wrap:wrap;padding:6px 0}}
 .pc-sw-falta{background:var(--pc-c0);opacity:.3}
+.pc-sw-janta{background:#F5C518;opacity:.45}
 .pc-sw-agora{width:3px;height:14px;border-radius:1px;background:var(--color-bad)}
 .pc-chart svg text.pc-agora-lab{fill:var(--color-bad);font-weight:600}
 @media print{.pc-ticker{display:none}}
@@ -236,6 +237,7 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
       <span><i class="pc-sw pc-sw-1"></i>Começa depois do horário planejado</span>
       <span><i class="pc-sw pc-sw-conf"></i>Conflito na mesma doca</span>
       <span><i class="pc-sw pc-sw-agora"></i>Agora</span>
+      <span><i class="pc-sw pc-sw-janta"></i>Janta 23:30–00:30 (separação mais lenta)</span>
     </div>
     <div class="pc-toolbar">
       <span class="pc-aj-dica">Arraste uma barra para os lados para mudar o horário, ou para cima/baixo para mudar a doca (passos de 5 min). Fica salvo para todos.</span>
@@ -259,6 +261,7 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
       <span><i class="pc-sw pc-sw-0"></i>Já separado</span>
       <span><i class="pc-sw pc-sw-falta"></i>Falta separar</span>
       <span><i class="pc-sw pc-sw-agora"></i>Agora</span>
+      <span><i class="pc-sw pc-sw-janta"></i>Janta 23:30–00:30 (separação mais lenta)</span>
     </div>
     <div class="pc-chart-sm" data-draw="sep-hora" data-source="separacao_hora"></div>
     <div class="pc-tablewrap">
@@ -317,6 +320,7 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
       <li>Tempo de carregamento: 290 volumes em 1h20. 8 docas disponíveis o dia todo.</li>
       <li>Cada carga pode começar até 1h antes do horário planejado. Rotas marcadas para antecipar (NEXXA) podem começar até 6h antes. Se uma carga da noite fosse passar das 05h, ela também é adiantada.</li>
       <li>Carreta consolidada (ex.: SPTF11 da Nova Dafran) e carreta de transferência (código com TF, ex.: RJTF41, SPTF41) vira uma carga só, juntando as sub-rotas, com tempo fixo de 2h na doca.</li>
+      <li>Faixa amarela das 23:30 às 00:30: horário de janta, em que a separação rende menos.</li>
       <li>Rotas arrastadas na linha do tempo ficam onde foram colocadas; as demais se encaixam nas docas livres.</li>
     </ul>
   </details>
@@ -674,6 +678,7 @@ dash.draw('prog-dias', (el) => {
   if (d.status !== 'ok' || !Array.isArray(d.data) || !d.data.length) { el.textContent = 'nenhum'; return; }
   el.textContent = d.data.map((x) => x.data).filter(Boolean).sort().map((s) => s.slice(8, 10) + '/' + s.slice(5, 7)).join(', ');
 });
+PC.janta = (d0, d1) => { const out = []; for (let dia = Math.floor(d0 / 1440) * 1440 - 1440; dia <= d1; dia += 1440) { const a = Math.max(d0, dia + 1410), b = Math.min(d1, dia + 1470); if (b > a) out.push([a, b]); } return out; };
 PC.agora = () => { const d = new Date(); return PC.abs(d.getFullYear() + '-' + PC.pad(d.getMonth() + 1) + '-' + PC.pad(d.getDate()) + 'T' + PC.pad(d.getHours()) + ':' + PC.pad(d.getMinutes())); };
 dash.draw('ticker', (el) => {
   const src = dash.data('programacao_aj');
@@ -699,6 +704,7 @@ dash.draw('ticker', (el) => {
     if (now < ini0) msgs.push({ t: 'Agora ' + PC.hhmm(now) + ': a operação do período começa ' + PC.lab(ini0) + ' com ' + aguard[0].rota + ' na ' + aguard[0].doca });
     else if (now >= fim1) msgs.push({ t: 'Agora ' + PC.hhmm(now) + ': operação do período encerrada, ' + rows.length + ' cargas carregadas' });
     else msgs.push({ t: 'Agora ' + PC.hhmm(now) + ': ' + carregando.length + ' em carregamento, ' + concl.length + ' concluídas, ' + aguard.length + ' aguardando' });
+    if (PC.janta(now, now + 1).length) msgs.push({ t: '🍽 Horário de janta (23:30–00:30): separação mais lenta', w: true });
     if (carregando.length) msgs.push({ t: 'Carregando: ' + carregando.sort((a, b) => a.docaN - b.docaN).map((r) => r.rota + ' (' + r.doca + ', até ' + PC.hhmm(r.fimM) + (temSep(r) ? ', ' + pct(r.pct_separado) + ' separado' : '') + ')').join(' · ') });
     if (aguard.length && now >= ini0) { const p = aguard[0]; msgs.push({ t: 'Próxima: ' + p.rota + ' às ' + PC.hhmm(p.ini) + ' na ' + p.doca + (p.motorista ? ' · motorista ' + p.motorista : '') + (p.placa ? ' · ' + p.placa : '') }); }
     if (atrasos.length) for (const a of atrasos) msgs.push({ t: '⚠ ' + a, w: true });
@@ -812,6 +818,12 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
       .style('stroke', 'var(--cds-chart-reference)').style('stroke-dasharray', '4 3');
     svg.append('g').selectAll('text').data(refs).join('text').attr('x', (d) => x(d.m)).attr('y', top - 9).attr('text-anchor', 'middle').text((d) => d.t);
     // tooltip
+    const jg = svg.append('g').style('pointer-events', 'none');
+    for (const [a, b] of PC.janta(d0, d1)) {
+      jg.append('rect').attr('x', x(a)).attr('width', x(b) - x(a)).attr('y', top - 4).attr('height', H - bottom - top + 4).style('fill', '#F5C518').style('fill-opacity', 0.28);
+      jg.append('text').attr('x', (x(a) + x(b)) / 2).attr('y', H - bottom - 4).attr('text-anchor', 'middle').style('fill', '#8A6A00').style('font-weight', 600).text('janta');
+    }
+    jg.lower();
     const tip = document.createElement('div'); tip.className = 'pc-tip'; tip.hidden = true; el.append(tip);
     const pctTxt = (v) => String(v).replace('.', ',') + '%';
     function show(ev, r) {
@@ -911,6 +923,7 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     const tk = d3.range(Math.ceil(d0 / st) * st, d1 + 1, st);
     svg.append('g').selectAll('text').data(tk).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle')
       .text((d) => { const h = PC.hhmm(d); return h === '00:00' ? PC.lab(d).slice(0, 5) : h.slice(0, 2) + 'h'; });
+    for (const [a, b] of PC.janta(d0, d1)) svg.append('rect').attr('x', x(a)).attr('width', x(b) - x(a)).attr('y', top).attr('height', H - bottom - top).style('fill', '#F5C518').style('fill-opacity', 0.28).style('pointer-events', 'none');
     const bw = Math.max(1, x(d0 + passo) - x(d0) - 1);
     const tip = document.createElement('div'); tip.className = 'pc-tip'; tip.hidden = true; el.append(tip);
     svg.append('g').selectAll('rect').data(data).join('rect').attr('x', (d) => x(d.minuto) + 0.5).attr('width', bw)
@@ -975,6 +988,7 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     const tk = d3.range(Math.ceil(d0 / st) * st, d1 + 1, st);
     svg.append('g').selectAll('text').data(tk).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle')
       .text((d) => { const h = PC.hhmm(d); return h === '00:00' ? PC.lab(d).slice(0, 5) : h.slice(0, 2) + 'h'; });
+    for (const [a, b] of PC.janta(d0, d1)) svg.append('rect').attr('x', x(a)).attr('width', x(b) - x(a)).attr('y', top).attr('height', H - bottom - top).style('fill', '#F5C518').style('fill-opacity', 0.28).style('pointer-events', 'none');
     const bw = Math.max(2, x(d0 + 60) - x(d0) - 2);
     const tip = document.createElement('div'); tip.className = 'pc-tip'; tip.hidden = true; el.append(tip);
     const g = svg.append('g').selectAll('g').data(data.filter((d) => d.volumes > 0)).join('g');
