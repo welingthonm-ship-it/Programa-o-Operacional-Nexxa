@@ -137,6 +137,7 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
 @keyframes pcTk{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @keyframes pcPisca{0%,100%{opacity:1}50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.pc-tk-track,.pc-tk-dot{animation:none}.pc-tk-track{white-space:normal;flex-wrap:wrap;padding:6px 0}}
+.pc-sw-falta{background:var(--pc-c0);opacity:.3}
 .pc-sw-agora{width:3px;height:14px;border-radius:1px;background:var(--color-bad)}
 .pc-chart svg text.pc-agora-lab{fill:var(--color-bad);font-weight:600}
 @media print{.pc-ticker{display:none}}
@@ -247,8 +248,33 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
 
   <section class="pc-card" id="uso-docas">
     <h2 class="pc-h2">Docas em uso × docas disponíveis</h2>
-    <p class="pc-sub">A linha mostra as 10 docas disponíveis.</p>
+    <p class="pc-sub">A linha mostra as 8 docas disponíveis.</p>
     <div class="pc-chart-sm" data-draw="ocupacao" data-source="ocupacao"></div>
+  </section>
+
+  <section class="pc-card" id="separar-por-hora">
+    <h2 class="pc-h2">Volumes planejados para separar, hora a hora</h2>
+    <p class="pc-sub">Cada barra soma os volumes das cargas que começam a carregar naquela hora, ou seja, o que precisa estar separado até ali. A parte forte é o que já está separado e a parte clara é o que ainda falta separar, segundo o último arquivo de separação.</p>
+    <div class="pc-legend">
+      <span><i class="pc-sw pc-sw-0"></i>Já separado</span>
+      <span><i class="pc-sw pc-sw-falta"></i>Falta separar</span>
+      <span><i class="pc-sw pc-sw-agora"></i>Agora</span>
+    </div>
+    <div class="pc-chart-sm" data-draw="sep-hora" data-source="separacao_hora"></div>
+    <div class="pc-tablewrap">
+      <table class="pc-table" data-source="separacao_hora" data-row-key="hora">
+        <thead><tr>
+          <th data-field="rotulo">Hora</th>
+          <th data-field="cargas" class="pc-num">Cargas</th>
+          <th data-field="volumes" class="pc-num">Volumes planejados</th>
+          <th data-field="separados" class="pc-num">Já separados</th>
+          <th data-field="falta" class="pc-num">Falta separar</th>
+          <th data-field="falta_acum" class="pc-num">Falta acumulado</th>
+          <th data-field="rotas">Rotas</th>
+        </tr></thead>
+        <tbody data-draw="sep-hora-tabela"></tbody>
+      </table>
+    </div>
   </section>
 
   <section class="pc-card" id="lista-cargas">
@@ -257,7 +283,7 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
       <label for="pc-filtro-doca">Doca</label>
       <select class="dash-select" id="pc-filtro-doca" aria-label="Filtrar por doca">
         <option value="">Todas as docas</option>
-        <option>Doca 1</option><option>Doca 2</option><option>Doca 3</option><option>Doca 4</option><option>Doca 5</option><option>Doca 6</option><option>Doca 7</option><option>Doca 8</option><option>Doca 9</option><option>Doca 10</option>
+        <option>Doca 1</option><option>Doca 2</option><option>Doca 3</option><option>Doca 4</option><option>Doca 5</option><option>Doca 6</option><option>Doca 7</option><option>Doca 8</option>
       </select>
     </div>
     <div class="pc-tablewrap">
@@ -288,7 +314,7 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
       <li>Entram as rotas da programação importada e as rotas da separação que ainda não estão finalizadas, com horário dentro do período escolhido.</li>
       <li>Rota da programação e da separação são a mesma quando o código bate, mesmo com outro tipo de carro (ex.: SOTQ126 = SOVC126).</li>
       <li>Volumes = Pen + Sep + OK da última separação. Sem dado de separação, o volume é estimado pelo peso da programação.</li>
-      <li>Tempo de carregamento: 290 volumes em 1h20. 10 docas disponíveis o dia todo.</li>
+      <li>Tempo de carregamento: 290 volumes em 1h20. 8 docas disponíveis o dia todo.</li>
       <li>Cada carga pode começar até 1h antes do horário planejado. Rotas marcadas para antecipar (NEXXA) podem começar até 6h antes. Se uma carga da noite fosse passar das 05h, ela também é adiantada.</li>
       <li>Carreta consolidada (ex.: SPTF11 da Nova Dafran) e carreta de transferência (código com TF, ex.: RJTF41, SPTF41) vira uma carga só, juntando as sub-rotas, com tempo fixo de 2h na doca.</li>
       <li>Rotas arrastadas na linha do tempo ficam onde foram colocadas; as demais se encaixam nas docas livres.</li>
@@ -346,7 +372,7 @@ window.PC = (function () {
       docaN: +String(r.doca).replace(/\D/g, '')
     }));
   }
-  return { pad, abs, iso, hhmm, lab, nf, prep, filtroDoca: '', pend: {}, N1: 10, N2: 10 };
+  return { pad, abs, iso, hhmm, lab, nf, prep, filtroDoca: '', pend: {}, N1: 8, N2: 8 };
 })();
 
 dash.calc('rotas', {
@@ -450,7 +476,7 @@ dash.calc('rotas', {
 
 dash.calc('programacao_aj', {
   title: 'Plano de carregamento do período',
-  description: 'Distribui nas docas as rotas com horário dentro do período: 290 volumes em 1h20; 10 docas; cada carga pode começar até 1h antes do horário (6h nas rotas antecipadas ou que passariam das 05h); rotas arrastadas à mão ficam onde foram postas.',
+  description: 'Distribui nas docas as rotas com horário dentro do período: 290 volumes em 1h20; 8 docas; cada carga pode começar até 1h antes do horário (6h nas rotas antecipadas ou que passariam das 05h); rotas arrastadas à mão ficam onde foram postas.',
   inputs: ['rotas', 'ajustes'],
   fn: (rotas, ajustes) => {
     const pad = (n) => String(n).padStart(2, '0');
@@ -460,7 +486,7 @@ dash.calc('programacao_aj', {
     const prm = dash.params();
     if (!prm.de || !prm.ate) return [];
     const de = abs(prm.de), ate = abs(prm.ate);
-    const N1 = 10, N2 = 10, ANT = 60, ANT_PRI = 360, RATE = 80 / 290;
+    const N1 = 8, N2 = 8, ANT = 60, ANT_PRI = 360, RATE = 80 / 290;
     const hourOf = (m) => (((m % 1440) + 1440) % 1440) / 60;
     const noite = (m) => { const h = hourOf(m); return h >= 21 || h < 5; };
     const abre = (m, k) => { if (k < N1 || noite(m)) return m; let t = Math.floor(m / 1440) * 1440 + 21 * 60; if (t < m) t += 1440; return t; };
@@ -543,7 +569,7 @@ dash.calc('ocupacao', {
     const out = [];
     for (let t = de; t < ate; t += passo) {
       const h = (((t % 1440) + 1440) % 1440) / 60;
-      out.push({ minuto: t, em_uso: ivs.filter(([a, b]) => a <= t && b > t).length, disponiveis: 10 });
+      out.push({ minuto: t, em_uso: ivs.filter(([a, b]) => a <= t && b > t).length, disponiveis: 8 });
     }
     return out;
   }
@@ -559,6 +585,35 @@ dash.calc('agendamento', {
       const mm = +r.inicio.slice(14, 16);
       const cheg = r.inicio.slice(0, 14) + (mm >= 30 ? '30' : '00');
       return { seq: i + 1, chave: r.chave, chegada: lab(cheg), rota: r.rota, doca: r.doca, modal: r.modal || '', transportadora: r.transportadora || '', motorista: r.motorista || '', placa: r.placa || '', ajudante: r.ajudante || '', inicio: lab(r.inicio), volumes: Number(r.volumes) };
+    });
+  }
+});
+
+dash.calc('separacao_hora', {
+  title: 'Volumes planejados para separar por hora',
+  description: 'Para cada hora do período, soma os volumes das cargas que começam a carregar naquela hora (o prazo para estarem separados), quanto já está separado (Sep + OK) e quanto falta, com o que falta acumulado ao longo do período.',
+  inputs: ['programacao_aj'],
+  fn: (programacao_aj) => {
+    const EPOCH = Date.UTC(2026, 0, 1);
+    const pad = (n) => String(n).padStart(2, '0');
+    const abs = (s) => { s = String(s); return Math.round((Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), +s.slice(11, 13) || 0, +s.slice(14, 16) || 0) - EPOCH) / 60000); };
+    const iso = (m) => { const t = new Date(EPOCH + m * 60000); return t.getUTCFullYear() + '-' + pad(t.getUTCMonth() + 1) + '-' + pad(t.getUTCDate()) + 'T' + pad(t.getUTCHours()) + ':' + pad(t.getUTCMinutes()); };
+    const prm = dash.params();
+    if (!prm.de || !prm.ate) return [];
+    let h0 = Math.floor(abs(prm.de) / 60) * 60, h1 = Math.floor(abs(prm.ate) / 60) * 60;
+    for (const r of programacao_aj) { const m = Math.floor(abs(r.inicio) / 60) * 60; if (m < h0) h0 = m; if (m > h1) h1 = m; }
+    const b = {};
+    for (let t = h0; t <= h1; t += 60) b[t] = { cargas: 0, volumes: 0, separados: 0, rotas: [] };
+    for (const r of programacao_aj) {
+      const m = Math.floor(abs(r.inicio) / 60) * 60; const x = b[m]; if (!x) continue;
+      const v = Number(r.volumes) || 0; const s = r.separados === null || r.separados === undefined ? 0 : Math.min(v, Number(r.separados) || 0);
+      x.cargas += 1; x.volumes += v; x.separados += s; x.rotas.push(r.rota);
+    }
+    let acum = 0;
+    return Object.keys(b).map(Number).sort((a, c) => a - c).map((t) => {
+      const x = b[t]; const falta = x.volumes - x.separados; acum += falta;
+      const i = iso(t);
+      return { hora: i, rotulo: i.slice(8, 10) + '/' + i.slice(5, 7) + ' ' + i.slice(11, 13) + 'h', cargas: x.cargas, volumes: x.volumes, separados: x.separados, falta, falta_acum: acum, rotas: x.rotas.join(', ') };
     });
   }
 });
@@ -730,7 +785,7 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     const x = d3.scaleLinear().domain([d0, d1]).range([left, W - right]);
     const y = (n) => top + (n - 1) * rowH;
     const svg = d3.select(el).append('svg').attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
-      .attr('aria-label', 'Linha do tempo das 10 docas no período escolhido, com cada carga como uma barra do início ao fim do carregamento.');
+      .attr('aria-label', 'Linha do tempo das 8 docas no período escolhido, com cada carga como uma barra do início ao fim do carregamento.');
     const ticks = d3.range(d0, d1 + 1, 60);
     svg.append('g').selectAll('line').data(ticks).join('line').attr('x1', x).attr('x2', x).attr('y1', top - 4).attr('y2', H - bottom).style('stroke', 'var(--cds-chart-grid)');
     svg.append('g').selectAll('text').data(ticks).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle')
@@ -847,11 +902,11 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     const d0 = data[0].minuto, d1 = data[data.length - 1].minuto + passo;
     const W = Math.max(320, el.clientWidth), H = 190, top = 10, left = 30, right = 12, bottom = 26;
     const x = d3.scaleLinear().domain([d0, d1]).range([left, W - right]);
-    const yS = d3.scaleLinear().domain([0, 11]).range([H - bottom, top]);
+    const yS = d3.scaleLinear().domain([0, 9]).range([H - bottom, top]);
     const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
       .attr('aria-label', 'Barras com o número de docas em uso em cada intervalo, comparadas com as docas disponíveis.');
-    svg.append('g').selectAll('line').data([0, 2, 4, 6, 8, 10]).join('line').attr('x1', left).attr('x2', W - right).attr('y1', yS).attr('y2', yS).style('stroke', 'var(--cds-chart-grid)');
-    svg.append('g').selectAll('text').data([0, 2, 4, 6, 8, 10]).join('text').attr('x', left - 6).attr('y', (d) => yS(d) + 4).attr('text-anchor', 'end').text((d) => d);
+    svg.append('g').selectAll('line').data([0, 2, 4, 6, 8]).join('line').attr('x1', left).attr('x2', W - right).attr('y1', yS).attr('y2', yS).style('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data([0, 2, 4, 6, 8]).join('text').attr('x', left - 6).attr('y', (d) => yS(d) + 4).attr('text-anchor', 'end').text((d) => d);
     const horas = (d1 - d0) / 60; const st = horas <= 14 ? 60 : horas <= 30 ? 120 : horas <= 72 ? 360 : 720;
     const tk = d3.range(Math.ceil(d0 / st) * st, d1 + 1, st);
     svg.append('g').selectAll('text').data(tk).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle')
@@ -897,6 +952,66 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
       if (r.ajustado === true || r.ajustado === 'true') tag('ajustado à mão');
       if (r.passa_corte === true || r.passa_corte === 'true') tag('passa do corte', 'pc-tag-bad');
       if (r.obs) { const s = document.createElement('span'); s.className = 'pc-aj-dica'; s.textContent = r.obs; o.append(s); }
+      tb.append(tr);
+    }
+  });
+
+  dash.draw('sep-hora', (el) => {
+    const src = dash.data('separacao_hora');
+    el.replaceChildren();
+    if (src.status !== 'ok' || !Array.isArray(src.data) || !src.data.length) return;
+    const data = src.data.map((d) => ({ ...d, m: PC.abs(d.hora) }));
+    const d0 = data[0].m, d1 = data[data.length - 1].m + 60;
+    const W = Math.max(320, el.clientWidth), H = 220, top = 16, left = 48, right = 12, bottom = 26;
+    const x = d3.scaleLinear().domain([d0, d1]).range([left, W - right]);
+    const maxV = d3.max(data, (d) => d.volumes) || 1;
+    const y = d3.scaleLinear().domain([0, maxV]).nice().range([H - bottom, top]);
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
+      .attr('aria-label', 'Barras por hora com os volumes das cargas que começam a carregar em cada hora, divididos em já separado e falta separar.');
+    const yt = y.ticks(4);
+    svg.append('g').selectAll('line').data(yt).join('line').attr('x1', left).attr('x2', W - right).attr('y1', y).attr('y2', y).style('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data(yt).join('text').attr('x', left - 6).attr('y', (d) => y(d) + 4).attr('text-anchor', 'end').text((d) => PC.nf.format(d));
+    const horas = (d1 - d0) / 60; const st = horas <= 14 ? 60 : horas <= 30 ? 120 : horas <= 72 ? 360 : 720;
+    const tk = d3.range(Math.ceil(d0 / st) * st, d1 + 1, st);
+    svg.append('g').selectAll('text').data(tk).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle')
+      .text((d) => { const h = PC.hhmm(d); return h === '00:00' ? PC.lab(d).slice(0, 5) : h.slice(0, 2) + 'h'; });
+    const bw = Math.max(2, x(d0 + 60) - x(d0) - 2);
+    const tip = document.createElement('div'); tip.className = 'pc-tip'; tip.hidden = true; el.append(tip);
+    const g = svg.append('g').selectAll('g').data(data.filter((d) => d.volumes > 0)).join('g');
+    g.append('rect').attr('x', (d) => x(d.m) + 1).attr('width', bw).attr('y', (d) => y(d.volumes)).attr('height', (d) => y(0) - y(d.volumes)).attr('rx', 2)
+      .style('fill', 'var(--pc-c0)').style('fill-opacity', 0.3);
+    g.append('rect').attr('x', (d) => x(d.m) + 1).attr('width', bw).attr('y', (d) => y(d.separados)).attr('height', (d) => y(0) - y(d.separados)).attr('rx', 2)
+      .style('fill', 'var(--pc-c0)').style('pointer-events', 'none');
+    g.on('pointerenter pointermove', function (ev, d) {
+      tip.replaceChildren();
+      const add = (t, c) => { const e = document.createElement(c ? 'b' : 'div'); e.textContent = t; tip.append(e); };
+      add(d.rotulo + ' · ' + d.cargas + (d.cargas === 1 ? ' carga' : ' cargas'), true);
+      add(PC.nf.format(d.volumes) + ' volumes planejados');
+      add(PC.nf.format(d.separados) + ' já separados · ' + PC.nf.format(d.falta) + ' faltam');
+      add('Falta acumulado até aqui: ' + PC.nf.format(d.falta_acum));
+      const r = document.createElement('div'); r.className = 'pc-tip-m'; r.textContent = d.rotas; r.style.whiteSpace = 'normal'; r.style.maxWidth = '320px'; tip.append(r);
+      tip.hidden = false;
+      const bx = el.getBoundingClientRect();
+      let lx = ev.clientX - bx.left + 12; if (lx + tip.offsetWidth > bx.width) lx = ev.clientX - bx.left - tip.offsetWidth - 12;
+      tip.style.left = Math.max(0, lx) + 'px'; tip.style.top = Math.max(0, ev.clientY - bx.top - 60) + 'px';
+    }).on('pointerleave', () => { tip.hidden = true; });
+    const ag = PC.agora();
+    if (ag >= d0 && ag <= d1) svg.append('line').attr('x1', x(ag)).attr('x2', x(ag)).attr('y1', top).attr('y2', H - bottom).style('stroke', 'var(--color-bad)').style('stroke-width', 2).style('pointer-events', 'none');
+  });
+
+  dash.draw('sep-hora-tabela', (tb) => {
+    const src = dash.data('separacao_hora');
+    tb.replaceChildren();
+    if (src.status !== 'ok' || !Array.isArray(src.data)) return;
+    const agoraH = Math.floor(PC.agora() / 60) * 60;
+    for (const r of src.data) {
+      if (!r.cargas) continue;
+      const tr = document.createElement('tr'); tr.dataset.key = r.hora;
+      const td = (txt, cls) => { const c = document.createElement('td'); if (cls) c.className = cls; c.textContent = txt; tr.append(c); return c; };
+      td(r.rotulo); td(r.cargas, 'pc-num'); td(PC.nf.format(r.volumes), 'pc-num'); td(PC.nf.format(r.separados), 'pc-num');
+      td(PC.nf.format(r.falta), 'pc-num' + (r.falta > 0 && PC.abs(r.hora) <= agoraH ? ' pc-neg' : ''));
+      td(PC.nf.format(r.falta_acum), 'pc-num');
+      const c = td(r.rotas); c.style.whiteSpace = 'normal'; c.style.minWidth = '260px';
       tb.append(tr);
     }
   });
@@ -985,7 +1100,7 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     document.querySelectorAll('#agendamento').forEach((s) => { s.classList.remove('pc-print-page'); s.hidden = PC.tab !== 'agendamento'; });
   });
   document.querySelectorAll('#pc-filtro-doca').forEach((sel) => sel.addEventListener('change', () => { PC.filtroDoca = sel.value; dash.draw('tabela'); }));
-  setInterval(() => { dash.draw('ticker'); if (!PC.arrastando) { dash.draw('gantt'); dash.draw('ocupacao'); } }, 60000);
+  setInterval(() => { dash.draw('ticker'); if (!PC.arrastando) { dash.draw('gantt'); dash.draw('ocupacao'); dash.draw('sep-hora'); dash.draw('sep-hora-tabela'); } }, 60000);
 })();
 </script>
 
