@@ -4,7 +4,8 @@ Portal da expedição para planejar o carregamento nas docas: linha do tempo das
 
 ## Regras do plano
 - 290 volumes em 1h20 de carregamento.
-- 7 docas das 21h às 05h; 4 docas no resto do dia (docas 5 a 7 só abrem às 21h).
+- 10 docas disponíveis o dia todo.
+- Carretas de transferência (código com TF, ex.: RJTF41, SPTF41) e carretas consolidadas viram uma carga só, com 2h fixas na doca.
 - Cada carga pode começar até 1h antes do horário; rotas marcadas como antecipadas (NEXXA) até 6h antes. Cargas da noite que passariam das 05h são adiantadas.
 - Chegada do motorista = meia hora cheia anterior ao início do carregamento.
 

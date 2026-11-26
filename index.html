@@ -233,7 +233,6 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
     <div class="pc-legend">
       <span><i class="pc-sw pc-sw-0"></i>Começa no horário ou antes</span>
       <span><i class="pc-sw pc-sw-1"></i>Começa depois do horário planejado</span>
-      <span><i class="pc-sw pc-sw-closed"></i>Doca fechada</span>
       <span><i class="pc-sw pc-sw-conf"></i>Conflito na mesma doca</span>
       <span><i class="pc-sw pc-sw-agora"></i>Agora</span>
     </div>
@@ -248,7 +247,7 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
 
   <section class="pc-card" id="uso-docas">
     <h2 class="pc-h2">Docas em uso × docas disponíveis</h2>
-    <p class="pc-sub">A linha mostra quantas docas existem: 7 das 21h às 05h e 4 no resto do dia.</p>
+    <p class="pc-sub">A linha mostra as 10 docas disponíveis.</p>
     <div class="pc-chart-sm" data-draw="ocupacao" data-source="ocupacao"></div>
   </section>
 
@@ -258,7 +257,7 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
       <label for="pc-filtro-doca">Doca</label>
       <select class="dash-select" id="pc-filtro-doca" aria-label="Filtrar por doca">
         <option value="">Todas as docas</option>
-        <option>Doca 1</option><option>Doca 2</option><option>Doca 3</option><option>Doca 4</option><option>Doca 5</option><option>Doca 6</option><option>Doca 7</option>
+        <option>Doca 1</option><option>Doca 2</option><option>Doca 3</option><option>Doca 4</option><option>Doca 5</option><option>Doca 6</option><option>Doca 7</option><option>Doca 8</option><option>Doca 9</option><option>Doca 10</option>
       </select>
     </div>
     <div class="pc-tablewrap">
@@ -289,9 +288,9 @@ html,body{margin:0;background:#F4F7F5;color:var(--color-fg);font-family:var(--fo
       <li>Entram as rotas da programação importada e as rotas da separação que ainda não estão finalizadas, com horário dentro do período escolhido.</li>
       <li>Rota da programação e da separação são a mesma quando o código bate, mesmo com outro tipo de carro (ex.: SOTQ126 = SOVC126).</li>
       <li>Volumes = Pen + Sep + OK da última separação. Sem dado de separação, o volume é estimado pelo peso da programação.</li>
-      <li>Tempo de carregamento: 290 volumes em 1h20. Docas: 7 das 21h às 05h, 4 no resto do dia (as docas 5 a 7 só abrem às 21h).</li>
+      <li>Tempo de carregamento: 290 volumes em 1h20. 10 docas disponíveis o dia todo.</li>
       <li>Cada carga pode começar até 1h antes do horário planejado. Rotas marcadas para antecipar (NEXXA) podem começar até 6h antes. Se uma carga da noite fosse passar das 05h, ela também é adiantada.</li>
-      <li>Carreta consolidada (ex.: SPTF11 da Nova Dafran, com várias sub-rotas na separação) vira uma carga só, com tempo fixo de 2h na doca.</li>
+      <li>Carreta consolidada (ex.: SPTF11 da Nova Dafran) e carreta de transferência (código com TF, ex.: RJTF41, SPTF41) vira uma carga só, juntando as sub-rotas, com tempo fixo de 2h na doca.</li>
       <li>Rotas arrastadas na linha do tempo ficam onde foram colocadas; as demais se encaixam nas docas livres.</li>
     </ul>
   </details>
@@ -347,7 +346,7 @@ window.PC = (function () {
       docaN: +String(r.doca).replace(/\D/g, '')
     }));
   }
-  return { pad, abs, iso, hhmm, lab, nf, prep, filtroDoca: '', pend: {}, N1: 4, N2: 7 };
+  return { pad, abs, iso, hhmm, lab, nf, prep, filtroDoca: '', pend: {}, N1: 10, N2: 10 };
 })();
 
 dash.calc('rotas', {
@@ -423,6 +422,24 @@ dash.calc('rotas', {
       }
       const r = montar(p, null); if (r) out.push(r);
     }
+    const tf = /^[A-Z]{2}TF\d+$/;
+    const grupos = {};
+    for (const l of linhas) {
+      if (usadas.has(l)) continue;
+      const gU = String(l.grupo || '').toUpperCase(), rU = String(l.rota).toUpperCase();
+      const g = tf.test(gU) ? gU : tf.test(rU) ? rU : '';
+      if (!g) continue;
+      const k = l.data + '|' + g;
+      (grupos[k] = grupos[k] || { rota: g, data: l.data, itens: [] }).itens.push(l);
+    }
+    for (const G of Object.values(grupos)) {
+      let pend = 0, sep = 0;
+      for (const x of G.itens) { usadas.add(x); pend += Number(x.pendente || 0); sep += Number(x.pend_conf || 0) + Number(x.ok || 0); }
+      if (G.itens.every((x) => x.status === 'Finalizado')) continue;
+      const hr = (G.itens.find((x) => x.hora) || {}).hora;
+      const r = montar(null, { rota: G.rota, data: G.data, hora: hr, pendente: pend, pend_conf: 0, ok: sep, status: pend ? 'Em Andamento' : 'Finalizado' });
+      if (r) { r.fixo_min = CARRETA_MIN; const subs = G.itens.map((x) => x.rota).filter((x) => x !== G.rota); r.obs = [r.obs, 'Carreta de transferência, tempo fixo de ' + CARRETA_MIN + ' min' + (subs.length ? ' (' + subs.length + ' sub-rotas: ' + subs.join(', ') + ')' : '')].filter(Boolean).join(' · '); out.push(r); }
+    }
     for (const l of linhas) {
       if (usadas.has(l) || l.status === 'Finalizado') continue;
       const r = montar(null, l); if (r) out.push(r);
@@ -433,7 +450,7 @@ dash.calc('rotas', {
 
 dash.calc('programacao_aj', {
   title: 'Plano de carregamento do período',
-  description: 'Distribui nas docas as rotas com horário dentro do período: 290 volumes em 1h20; 7 docas das 21h às 05h e 4 no resto do dia; cada carga pode começar até 1h antes do horário (6h nas rotas antecipadas ou que passariam das 05h); rotas arrastadas à mão ficam onde foram postas.',
+  description: 'Distribui nas docas as rotas com horário dentro do período: 290 volumes em 1h20; 10 docas; cada carga pode começar até 1h antes do horário (6h nas rotas antecipadas ou que passariam das 05h); rotas arrastadas à mão ficam onde foram postas.',
   inputs: ['rotas', 'ajustes'],
   fn: (rotas, ajustes) => {
     const pad = (n) => String(n).padStart(2, '0');
@@ -443,7 +460,7 @@ dash.calc('programacao_aj', {
     const prm = dash.params();
     if (!prm.de || !prm.ate) return [];
     const de = abs(prm.de), ate = abs(prm.ate);
-    const N1 = 4, N2 = 7, ANT = 60, ANT_PRI = 360, RATE = 80 / 290;
+    const N1 = 10, N2 = 10, ANT = 60, ANT_PRI = 360, RATE = 80 / 290;
     const hourOf = (m) => (((m % 1440) + 1440) % 1440) / 60;
     const noite = (m) => { const h = hourOf(m); return h >= 21 || h < 5; };
     const abre = (m, k) => { if (k < N1 || noite(m)) return m; let t = Math.floor(m / 1440) * 1440 + 21 * 60; if (t < m) t += 1440; return t; };
@@ -526,7 +543,7 @@ dash.calc('ocupacao', {
     const out = [];
     for (let t = de; t < ate; t += passo) {
       const h = (((t % 1440) + 1440) % 1440) / 60;
-      out.push({ minuto: t, em_uso: ivs.filter(([a, b]) => a <= t && b > t).length, disponiveis: h >= 21 || h < 5 ? 7 : 4 });
+      out.push({ minuto: t, em_uso: ivs.filter(([a, b]) => a <= t && b > t).length, disponiveis: 10 });
     }
     return out;
   }
@@ -595,8 +612,9 @@ dash.draw('prog-dias', (el) => {
     if (d.status === 'ok' && Array.isArray(d.data)) for (const x of d.data) { let rs = []; try { rs = JSON.parse(x.rotas); } catch (e) {} for (const r of rs) { if (!r.data || !r.hora) continue; const m = PC.abs(r.data + 'T' + r.hora); if (m >= lim && (prox === null || m < prox)) prox = m; } }
     if (prox === null) prox = PC.abs(hoje);
     const dia = Math.floor(prox / 1440) * 1440;
-    const ini = (prox - dia) >= 12 * 60 ? dia + 18 * 60 : dia - 6 * 60;
-    dash.setParams({ de: PC.iso(ini), ate: PC.iso(ini + 12 * 60) });
+    const agoraM = PC.abs(hoje), diaH = Math.floor(agoraM / 1440) * 1440;
+    const ini = (agoraM - diaH) >= 360 ? diaH + 360 : diaH - 1080;
+    dash.setParams({ de: PC.iso(ini), ate: PC.iso(ini + 1440) });
   }
   if (d.status !== 'ok' || !Array.isArray(d.data) || !d.data.length) { el.textContent = 'nenhum'; return; }
   el.textContent = d.data.map((x) => x.data).filter(Boolean).sort().map((s) => s.slice(8, 10) + '/' + s.slice(5, 7)).join(', ');
@@ -712,7 +730,7 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     const x = d3.scaleLinear().domain([d0, d1]).range([left, W - right]);
     const y = (n) => top + (n - 1) * rowH;
     const svg = d3.select(el).append('svg').attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
-      .attr('aria-label', 'Linha do tempo das 7 docas no período escolhido, com cada carga como uma barra do início ao fim do carregamento.');
+      .attr('aria-label', 'Linha do tempo das 10 docas no período escolhido, com cada carga como uma barra do início ao fim do carregamento.');
     const ticks = d3.range(d0, d1 + 1, 60);
     svg.append('g').selectAll('line').data(ticks).join('line').attr('x1', x).attr('x2', x).attr('y1', top - 4).attr('y2', H - bottom).style('stroke', 'var(--cds-chart-grid)');
     svg.append('g').selectAll('text').data(ticks).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle')
@@ -724,7 +742,7 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     const fech = [];
     for (let dia = Math.floor(d0 / 1440) * 1440 - 1440; dia < d1; dia += 1440) {
       const a = Math.max(d0, dia + 5 * 60), b = Math.min(d1, dia + 21 * 60);
-      if (b > a) fech.push([a, b]);
+      if (b > a && PC.N2 > PC.N1) fech.push([a, b]);
     }
     svg.append('g').selectAll('rect').data(fech).join('rect').attr('x', (d) => x(d[0])).attr('width', (d) => x(d[1]) - x(d[0]))
       .attr('y', y(PC.N1 + 1) + 4).attr('height', (PC.N2 - PC.N1) * rowH - 8).attr('rx', 4).style('fill', 'url(#pc-hatch)');
@@ -733,7 +751,7 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     const refs = [];
     for (let dia = Math.floor(d0 / 1440) * 1440; dia <= d1; dia += 1440) {
       if (dia + 300 >= d0 && dia + 300 <= d1) refs.push({ m: dia + 300, t: 'corte 05h' });
-      if (dia + 1260 >= d0 && dia + 1260 <= d1) refs.push({ m: dia + 1260, t: '21h · +3 docas' });
+      if (PC.N2 > PC.N1 && dia + 1260 >= d0 && dia + 1260 <= d1) refs.push({ m: dia + 1260, t: '21h · +3 docas' });
     }
     svg.append('g').selectAll('line').data(refs).join('line').attr('x1', (d) => x(d.m)).attr('x2', (d) => x(d.m)).attr('y1', top - 6).attr('y2', H - bottom)
       .style('stroke', 'var(--cds-chart-reference)').style('stroke-dasharray', '4 3');
@@ -829,11 +847,11 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
     const d0 = data[0].minuto, d1 = data[data.length - 1].minuto + passo;
     const W = Math.max(320, el.clientWidth), H = 190, top = 10, left = 30, right = 12, bottom = 26;
     const x = d3.scaleLinear().domain([d0, d1]).range([left, W - right]);
-    const yS = d3.scaleLinear().domain([0, 8]).range([H - bottom, top]);
+    const yS = d3.scaleLinear().domain([0, 11]).range([H - bottom, top]);
     const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img')
       .attr('aria-label', 'Barras com o número de docas em uso em cada intervalo, comparadas com as docas disponíveis.');
-    svg.append('g').selectAll('line').data([0, 2, 4, 6, 8]).join('line').attr('x1', left).attr('x2', W - right).attr('y1', yS).attr('y2', yS).style('stroke', 'var(--cds-chart-grid)');
-    svg.append('g').selectAll('text').data([0, 2, 4, 6, 8]).join('text').attr('x', left - 6).attr('y', (d) => yS(d) + 4).attr('text-anchor', 'end').text((d) => d);
+    svg.append('g').selectAll('line').data([0, 2, 4, 6, 8, 10]).join('line').attr('x1', left).attr('x2', W - right).attr('y1', yS).attr('y2', yS).style('stroke', 'var(--cds-chart-grid)');
+    svg.append('g').selectAll('text').data([0, 2, 4, 6, 8, 10]).join('text').attr('x', left - 6).attr('y', (d) => yS(d) + 4).attr('text-anchor', 'end').text((d) => d);
     const horas = (d1 - d0) / 60; const st = horas <= 14 ? 60 : horas <= 30 ? 120 : horas <= 72 ? 360 : 720;
     const tk = d3.range(Math.ceil(d0 / st) * st, d1 + 1, st);
     svg.append('g').selectAll('text').data(tk).join('text').attr('x', x).attr('y', H - 8).attr('text-anchor', 'middle')
@@ -1142,14 +1160,14 @@ pcLista('lista-mp', 'programacao_manual', 'data/programacao/manual/', (r) => r.r
         return lin.length ? lin : null;
       }
     }
-    const h = rows.findIndex((r) => (r || []).some((c) => norm(c).startsWith('rota')) && (r || []).some((c) => norm(c).startsWith('carreg')));
+    const h = rows.findIndex((r) => (r || []).some((c) => norm(c).startsWith('rota')) && (r || []).some((c) => /^(data )?carreg/.test(norm(c))));
     if (h < 0) return null;
     const head = Array.from(rows[h], norm);
     const iR = achar(head, (c) => c.startsWith('rota'));
-    const iC = achar(head, (c) => c.startsWith('carreg'));
+    const iC = achar(head, (c) => c.startsWith('carreg'), (c) => c.startsWith('data carreg'));
     const iH = achar(head, (c) => c.startsWith('horario'), (c) => c.startsWith('hora'));
     const iP = achar(head, (c) => c === 'pen', (c) => c === 'pendente');
-    const iS = achar(head, (c) => c === 'sep', (c) => c.includes('conferencia'));
+    const iS = achar(head, (c) => c === 'sep' || c === 'separado', (c) => c.startsWith('pend') && c.includes('conf'));
     const iO = achar(head, (c) => c === 'ok');
     const iSt = achar(head, (c) => c === 'status');
     if (iR < 0 || iC < 0 || iH < 0 || iP < 0 || iS < 0 || iO < 0) return null;
