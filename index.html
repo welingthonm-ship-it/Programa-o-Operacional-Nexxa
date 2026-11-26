@@ -485,7 +485,7 @@ dash.calc('rotas', {
     }
     for (const l of linhas) {
       if (usadas.has(l) || l.status === 'Finalizado') continue;
-      const r = montar(null, l); if (r) out.push(r);
+      const r = montar(null, l); if (r) { if (out.some((o) => o.chave === r.chave)) r.chave += '_' + String(r.horario_planejado).slice(11, 16).replace(':', ''); out.push(r); }
     }
     return out;
   }
